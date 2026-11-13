@@ -3,7 +3,7 @@
 Din skivsamling i telefonen. Fota en skiva så letar appen upp vilken det är, eller sök fram skivor du vill ha. Spela albumet, eller en enskild låt, i Spotify.
 
 - **Läsa av foton:** först letar appen efter en streckkod med Googles ML Kit, direkt i telefonen och gratis. Saknas streckkod frågar den Gemini (gratisnivån) vilket omslag det är. Om Gemini inte har några anrop kvar för dagen söker appen på texten på omslaget.
-- **Bläddra:** som i en skivback. Dra nedåt för att fälla fram nästa skiva, eller hoppa med bokstavslisten. Sorteringen är artist (utan "The") och sedan årtal. ▦ byter till rutnät.
+- **Bläddra:** som i en skivback. Dra nedåt för att fälla fram nästa skiva, eller hoppa med bokstavslisten. Sorteringen är efternamn för soloartister (Dylan, Bob), bandnamn utan "The" för grupper, och sedan årtal. Fliken Alla visar både Har och Vill ha. ▦ byter till rutnät.
 - **Skivdata:** Discogs API ger omslag, utgåvor och låtlistor.
 - **Spela:** Spotify. Utan inloggning öppnar Spela en sökning i Spotify-appen. Med inloggning (kräver Premium och en egen Spotify-app) går den direkt till rätt album och låt.
 
