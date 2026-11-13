@@ -119,10 +119,6 @@
 <div class="sheet" id="settings"><div class="panel"><div class="pad">
   <h2>Inställningar</h2>
 
-  <label class="f" for="claudeKey">Claude API-nyckel (för att läsa av foton)</label>
-  <input id="claudeKey" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
-  <p class="note">Skapas på <a href="https://console.anthropic.com/settings/keys">console.anthropic.com</a>. Varje foto kostar någon enstaka öre.</p>
-
   <label class="f" for="discogsToken">Discogs personal token (skivdata)</label>
   <input id="discogsToken" autocomplete="off" spellcheck="false" placeholder="Klistra in token">
   <p class="note">Logga in på Discogs → <a href="https://www.discogs.com/settings/developers">Settings → Developers</a> → "Generate new token". Gratis.</p>
@@ -247,71 +243,68 @@ function toCand(r) {
   };
 }
 
-async function findFromInfo(info) {
-  const tries = [];
-  if (info.barcode) tries.push({ barcode: String(info.barcode).replace(/\D/g, ''), type: 'release' });
-  if (info.catno) tries.push({ catno: info.catno, artist: info.artist, type: 'release' });
-  if (info.artist && info.title) {
-    tries.push({ artist: info.artist, release_title: info.title, type: 'master' });
-    tries.push({ artist: info.artist, release_title: info.title, type: 'release' });
-  }
-  const q = [info.artist, info.title].filter(Boolean).join(' ');
-  if (q) tries.push({ q, type: 'master' }, { q, type: 'release' });
-  for (const p of tries) {
-    const res = await dgSearch(p);
-    if (res.length) return res.map(toCand);
-  }
-  return [];
-}
-async function findFromText(q) {
-  let res = await dgSearch({ q, type: 'master' });
-  if (res.length < 3) res = res.concat(await dgSearch({ q, type: 'release', per_page: 8 }));
-  return res.map(toCand);
-}
-
-/* ---------------- Claude: läs av fotot ---------------- */
-async function toJpegBase64(file, max = 1400) {
+/* ---------------- Läs av fotot (gratis, direkt i telefonen) ---------------- */
+async function toJpegBase64(file, max = 2000) {
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
   const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+  return c.toDataURL('image/jpeg', 0.9).split(',')[1];
 }
-async function readPhoto(b64) {
-  if (!cfg.claudeKey) throw new Error('Lägg in din Claude API-nyckel under ⚙︎ först.');
-  const prompt = `Bilden visar en skiva (LP, singel eller CD): omslag, baksida, etikett eller streckkod.
-Identifiera skivan. Svara ENBART med JSON i detta format, null för det du inte vet:
-{"artist": "...", "title": "...", "year": 1977, "label": "...", "catno": "...", "barcode": "...", "confidence": "high|medium|low"}
-- barcode: bara siffrorna om en streckkod syns.
-- catno: katalognumret som det står på skivan.
-- Om du känner igen omslaget utan text, fyll i artist och title ändå.`;
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': cfg.claudeKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: cfg.model || 'claude-sonnet-5-5',
-      max_tokens: 400,
-      messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-        { type: 'text', text: prompt }
-      ] }]
-    })
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    if (r.status === 401) throw new Error('Claude godkände inte API-nyckeln. Kolla den under ⚙︎.');
-    throw new Error('Claude: ' + (j.error?.message || r.status));
+let cbSeq = 0; const cbs = {};
+window.__cb = (id, ok, data) => { const c = cbs[id]; if (!c) return; delete cbs[id]; ok ? c.res(data) : c.rej(new Error(data)); };
+function nativeScan(b64) {
+  return new Promise((res, rej) => { const id = 'c' + (++cbSeq); cbs[id] = { res: d => res(JSON.parse(d)), rej }; App.scan(b64, id); });
+}
+// Android-appen läser streckkod och text med Googles ML Kit, i telefonen och utan kostnad.
+async function scanPhoto(file) {
+  if (window.App && App.scan) return nativeScan(await toJpegBase64(file));
+  if ('BarcodeDetector' in window) {   // vanlig webbläsare: bara streckkod
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const codes = await new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }).detect(bmp);
+    return { barcodes: codes.map(c => c.rawValue), lines: [] };
   }
-  const text = (j.content || []).map(c => c.text || '').join('');
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('Kunde inte tolka svaret från Claude.');
-  return JSON.parse(m[0]);
+  throw new Error('Att läsa av foton fungerar i Android-appen. Här kan du söka med text i stället.');
+}
+const byHeight = lines => [...lines].sort((a, b) => b.h - a.h);
+const CATNO = /\b([A-Z]{1,6}[ .-]?\d{3,7})\b/;
+
+async function findFromScan(scan) {
+  const words = new Set(norm((scan.lines || []).map(l => l.t).join(' ')).split(' ').filter(w => w.length > 1));
+  const seen = new Map();
+  const best = () => Math.max(0, ...[...seen.values()].map(c => c.score));
+  const add = (res, bonus = 0) => res.map(toCand).forEach(c => {
+    if (seen.has(c.dId)) return;
+    const toks = norm(c.artist + ' ' + c.title).split(' ').filter(w => w.length > 1);
+    const hit = toks.length ? toks.filter(w => words.has(w)).length / toks.length : 0;
+    seen.set(c.dId, { ...c, score: hit + bonus });
+  });
+  // 1. Streckkod ger nästan alltid exakt rätt utgåva.
+  for (const code of scan.barcodes || []) add(await dgSearch({ barcode: code.replace(/\D/g, ''), type: 'release' }), 2);
+  if (seen.size) return rank(seen);
+  // 2. Katalognummer, t.ex. "SKL 5251".
+  const lines = (scan.lines || []).filter(l => norm(l.t).length > 1);
+  const cat = lines.map(l => l.t.match(CATNO)).find(Boolean);
+  if (cat) add(await dgSearch({ catno: cat[1], type: 'release' }), 0.3);
+  // 3. Den största texten är oftast artist och titel.
+  const big = byHeight(lines).slice(0, 3).map(l => l.t);
+  const qs = [];
+  if (big.length >= 2) qs.push(big[0] + ' ' + big[1]);
+  if (big.length >= 3) qs.push(big[0] + ' ' + big[2], big[1] + ' ' + big[2]);
+  if (big.length) qs.push(big[0]);
+  for (const q of qs.slice(0, 3)) {
+    if (best() >= 0.99) break;
+    add(await dgSearch({ q, type: 'master', per_page: 8 }));
+  }
+  if (best() < 0.5 && qs[0]) add(await dgSearch({ q: qs[0], type: 'release', per_page: 8 }));
+  return rank(seen);
+}
+const rank = m => [...m.values()].sort((a, b) => b.score - a.score).slice(0, 8);
+async function findFromText(q) {
+  let res = await dgSearch({ q, type: 'master' });
+  if (res.length < 3) res = res.concat(await dgSearch({ q, type: 'release', per_page: 8 }));
+  return res.map(toCand);
 }
 
 /* ---------------- Lägg till ---------------- */
@@ -319,7 +312,8 @@ let lastCands = [];
 function openAdd(def = 'have') {
   addDefault = def;
   $('#addView').classList.add('open');
-  $('#addStatus').innerHTML = ''; $('#addResults').innerHTML = '';
+  $('#addStatus').innerHTML = '<p class="note">Bäst träff: fota baksidan så att streckkoden syns. Annars framsidan eller etiketten med tydlig text.</p>';
+  $('#addResults').innerHTML = '';
   $('#aq').value = '';
 }
 const closeAdd = () => $('#addView').classList.remove('open');
@@ -334,13 +328,15 @@ async function onPhoto(file) {
   $('#addResults').innerHTML = '';
   try {
     busy('Läser av bilden…');
-    const info = await readPhoto(await toJpegBase64(file));
-    const what = [info.artist, info.title].filter(Boolean).join(' – ') || 'okänd skiva';
-    $('#aq').value = [info.artist, info.title].filter(Boolean).join(' ');
-    busy(`Hittade "${what}". Söker i Discogs…`);
-    const cands = await findFromInfo(info);
-    $('#addStatus').innerHTML = `<div class="read">Claude läste: <b>${esc(what)}</b>${info.year ? ' (' + esc(info.year) + ')' : ''}${
-      info.catno ? ' · ' + esc(info.catno) : ''}${info.confidence === 'low' ? '<br><span class="m">Osäker gissning – rätta sökningen ovan om det blev fel.</span>' : ''}</div>`;
+    const scan = await scanPhoto(file);
+    const lines = byHeight((scan.lines || []).filter(l => norm(l.t).length > 1));
+    if (!scan.barcodes?.length && !lines.length)
+      throw new Error('Hittade ingen streckkod eller text. Prova att fota baksidan med streckkoden, eller sök med text.');
+    const shown = scan.barcodes?.length ? 'streckkod ' + scan.barcodes[0] : lines.slice(0, 3).map(l => l.t).join(' · ');
+    if (lines.length) $('#aq').value = lines.slice(0, 2).map(l => l.t).join(' ');
+    busy('Söker i Discogs…');
+    const cands = await findFromScan(scan);
+    $('#addStatus').innerHTML = `<div class="read">Läste: <b>${esc(shown)}</b><br><span class="m">Blev det fel? Rätta texten i sökfältet och tryck sök.</span></div>`;
     showCands(cands);
   } catch (e) { fail(e); }
 }
@@ -556,7 +552,6 @@ function drawSpBox() {
   if ($('#spOut')) $('#spOut').onclick = () => { sp = null; LS.set('sh.sp', null); drawSpBox(); toast('Utloggad från Spotify'); };
 }
 function openSettings() {
-  $('#claudeKey').value = cfg.claudeKey || '';
   $('#discogsToken').value = cfg.discogs || '';
   $('#spClient').value = cfg.spClient || '';
   $('#redirUri').textContent = REDIRECT;
@@ -565,7 +560,6 @@ function openSettings() {
   $('#settings').classList.add('open');
 }
 function closeSettings() {
-  cfg.claudeKey = $('#claudeKey').value.trim();
   cfg.discogs = $('#discogsToken').value.trim();
   cfg.spClient = $('#spClient').value.trim();
   saveCfg(); render();

@@ -44,4 +44,7 @@ android {
 dependencies {
     // FileProvider, så att kameraappen kan spara fotot åt oss i full upplösning.
     implementation("androidx.core:core:1.13.1")
+    // Googles ML Kit: läser streckkod och text i telefonen, gratis och utan nätverk (modellerna följer med appen).
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }
