@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Skivhyllan</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root{--bg:#0f1115;--card:#1a1d24;--fg:#eef0f4;--mut:#9aa3b2;--acc:#e5b84b;--line:#2a2f3a;--sp:#1db954}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  header{position:sticky;top:0;z-index:5;background:rgba(15,17,21,.95);backdrop-filter:blur(8px);padding:12px 14px 10px;border-bottom:1px solid var(--line)}
+  .row{display:flex;align-items:center;gap:8px}
+  h1{font-size:20px;margin:0;flex:1}
+  button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+  button.on{background:var(--acc);color:#111;border-color:var(--acc);font-weight:600}
+  input,select,textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+  textarea{min-height:120px;font-size:12px;font-family:ui-monospace,monospace}
+  .tools{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+  .tools select{width:auto;padding:8px}
+  .tabs{display:flex;gap:6px;margin-top:10px}
+  main{padding:12px 14px 100px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:12px}
+  .item{background:none;border:0;border-radius:10px;padding:0;text-align:left}
+  .cover,.ph{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;background:var(--card);display:block}
+  .ph{display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:30px}
+  .t{font-size:13px;margin-top:5px;font-weight:600;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .m{font-size:12px;color:var(--mut)}
+  .msg{color:var(--mut);text-align:center;padding:30px 10px}
+  .fab{position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;
+       background:var(--acc);color:#111;border:0;font-size:30px;line-height:1;z-index:8;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  .view{position:fixed;inset:0;background:var(--bg);z-index:15;display:none;overflow:auto;
+        padding:env(safe-area-inset-top) 14px calc(30px + env(safe-area-inset-bottom))}
+  .view.open{display:block}
+  .bar{position:sticky;top:0;background:var(--bg);padding:12px 0 10px;z-index:2}
+  .bar input{flex:1}
+  .shoot{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin:4px 0 6px}
+  .shoot label{display:block;text-align:center;padding:14px 8px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-weight:600}
+  .shoot label.big{background:var(--acc);color:#111;border-color:var(--acc)}
+  .shoot input{display:none}
+  .cand{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .cand img,.cand .ph{width:64px;height:64px;border-radius:6px;font-size:20px}
+  .cand .btns{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .cand .btns button{padding:5px 12px;font-size:14px}
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:20}
+  .sheet.open{display:flex}
+  .panel{background:var(--bg);width:100%;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;border-top:1px solid var(--line);padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  .pad{padding:14px}
+  .pad h2{margin:0 0 4px;font-size:20px}
+  .bigcover{width:min(100%,340px);aspect-ratio:1/1;object-fit:cover;display:block;margin:14px auto 0;border-radius:10px;background:var(--card)}
+  .actions{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .actions a,.actions button{display:block;text-align:center;padding:12px;border-radius:12px;text-decoration:none;color:var(--fg);font-weight:600;background:var(--card);border:1px solid var(--line);width:100%}
+  .actions .play{background:var(--sp);border-color:var(--sp);color:#04140a}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .split button.on{background:var(--acc);color:#111;border-color:var(--acc)}
+  .actions .danger{color:#ff8a80}
+  .tracks{margin-top:16px}
+  .tr{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+  .tr .p{color:var(--mut);font-size:12px}
+  .tr .d{color:var(--mut);font-size:12px}
+  .tr.h{grid-template-columns:1fr;color:var(--mut);font-size:12px;font-weight:600;cursor:default}
+  .note{font-size:12px;color:var(--mut);margin-top:8px}
+  label.f{display:block;margin:14px 0 6px;color:var(--mut);font-size:13px}
+  a{color:var(--acc)}
+  #toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+         background:#2a2f3a;color:var(--fg);padding:10px 16px;border-radius:12px;opacity:0;transition:.25s;z-index:50;
+         max-width:90vw;text-align:center;pointer-events:none}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .read{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;font-size:14px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--mut);border-top-color:transparent;border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>Skivhyllan</h1>
+    <button id="btnSettings" aria-label="Inställningar">⚙︎</button>
+  </div>
+  <div class="tabs">
+    <button data-tab="have" class="on">Har</button>
+    <button data-tab="want">Vill ha</button>
+  </div>
+  <div class="tools">
+    <input id="filter" type="search" placeholder="Sök i hyllan" autocomplete="off">
+    <select id="sort" aria-label="Sortering">
+      <option value="artist">Artist</option>
+      <option value="title">Titel</option>
+      <option value="year">År</option>
+      <option value="added">Senast tillagd</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <div id="list"></div>
+</main>
+
+<button class="fab" id="btnAdd" aria-label="Lägg till skiva">+</button>
+
+<div class="view" id="addView">
+  <div class="row bar">
+    <input id="aq" type="search" enterkeyhint="search" autocomplete="off" placeholder="Sök artist eller album">
+    <button id="closeAdd">Stäng</button>
+  </div>
+  <div class="shoot">
+    <label class="big">📷 Fota skivan<input id="camInput" type="file" accept="image/*" capture="environment"></label>
+    <label>🖼 Välj bild<input id="picInput" type="file" accept="image/*"></label>
+  </div>
+  <div id="addStatus"></div>
+  <div id="addResults"></div>
+</div>
+
+<div class="sheet" id="detail"><div class="panel" id="detailBody"></div></div>
+
+<div class="sheet" id="settings"><div class="panel"><div class="pad">
+  <h2>Inställningar</h2>
+
+  <label class="f" for="claudeKey">Claude API-nyckel (för att läsa av foton)</label>
+  <input id="claudeKey" autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+  <p class="note">Skapas på <a href="https://console.anthropic.com/settings/keys">console.anthropic.com</a>. Varje foto kostar någon enstaka öre.</p>
+
+  <label class="f" for="discogsToken">Discogs personal token (skivdata)</label>
+  <input id="discogsToken" autocomplete="off" spellcheck="false" placeholder="Klistra in token">
+  <p class="note">Logga in på Discogs → <a href="https://www.discogs.com/settings/developers">Settings → Developers</a> → "Generate new token". Gratis.</p>
+
+  <label class="f" for="spClient">Spotify Client ID (valfritt, ger exakt rätt album)</label>
+  <input id="spClient" autocomplete="off" spellcheck="false" placeholder="Client ID">
+  <p class="note">Skapa en app på <a href="https://developer.spotify.com/dashboard">developer.spotify.com</a>, välj "Web API" och lägg in Redirect URI:<br><code id="redirUri"></code><br>
+    Kräver Spotify Premium. Utan inloggning öppnar Spela-knappen en sökning i Spotify i stället.</p>
+  <div class="actions" id="spBox"></div>
+
+  <label class="f">Säkerhetskopia</label>
+  <p class="note">Samlingen sparas i appen på den här telefonen. Kopiera texten nedan och spara den någonstans för att ha en backup, eller klistra in en backup och tryck Importera.</p>
+  <textarea id="backup" spellcheck="false"></textarea>
+  <div class="split" style="margin-top:8px">
+    <button id="btnExport">Visa backup</button>
+    <button id="btnImport">Importera</button>
+  </div>
+
+  <div class="actions"><button id="closeSettings" class="play" style="background:var(--acc);border-color:var(--acc);color:#111">Spara och stäng</button></div>
+</div></div></div>
+
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {
+  get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const REDIRECT = location.origin + location.pathname;
+
+let cfg = LS.get('sh.cfg', {});
+let sp = LS.get('sh.sp', null);           // Spotify-token
+let recs = LS.get('sh.recs', []);          // skivorna
+let view = { tab: 'have', sort: LS.get('sh.sort', 'artist'), q: '' };
+let addDefault = 'have';
+
+const saveRecs = () => LS.set('sh.recs', recs);
+const saveCfg = () => LS.set('sh.cfg', cfg);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function toast(t, ms = 2600) {
+  const el = $('#toast'); el.textContent = t; el.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), ms);
+}
+function openUrl(url) {
+  if (window.App && App.openExternal) App.openExternal(url);
+  else window.open(url, '_blank');
+}
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/ - .*$/, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+const sortKey = s => String(s || '').replace(/^(the|a)\s+/i, '');
+
+/* ---------------- Hyllan ---------------- */
+function render() {
+  const have = recs.filter(r => r.status === 'have').length;
+  const want = recs.length - have;
+  document.querySelector('[data-tab=have]').textContent = `Har (${have})`;
+  document.querySelector('[data-tab=want]').textContent = `Vill ha (${want})`;
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === view.tab));
+  $('#sort').value = view.sort;
+
+  const q = norm(view.q);
+  let list = recs.filter(r => r.status === view.tab && (!q || norm(r.artist + ' ' + r.title).includes(q)));
+  const cmp = (a, b) => a.localeCompare(b, 'sv', { sensitivity: 'base' });
+  list.sort({
+    artist: (a, b) => cmp(sortKey(a.artist), sortKey(b.artist)) || (a.year || 0) - (b.year || 0),
+    title: (a, b) => cmp(a.title, b.title),
+    year: (a, b) => (a.year || 9999) - (b.year || 9999) || cmp(sortKey(a.artist), sortKey(b.artist)),
+    added: (a, b) => b.added - a.added
+  }[view.sort]);
+
+  if (!recs.length) {
+    $('#list').innerHTML = `<div class="msg">Hyllan är tom.<br>Tryck på <b>+</b> för att fota en skiva eller söka fram en.${
+      !cfg.discogs ? '<br><br>Börja med att lägga in nycklarna under ⚙︎.' : ''}</div>`;
+    return;
+  }
+  if (!list.length) {
+    $('#list').innerHTML = `<div class="msg">${q ? 'Inga träffar.' : view.tab === 'want' ? 'Önskelistan är tom.' : 'Inga skivor här än.'}</div>`;
+    return;
+  }
+  $('#list').innerHTML = '<div class="grid">' + list.map(r => `
+    <button class="item" data-id="${r.id}">
+      ${r.cover ? `<img class="cover" loading="lazy" src="${esc(r.cover)}" alt="">` : '<div class="ph">♪</div>'}
+      <div class="t">${esc(r.title)}</div>
+      <div class="m">${esc(r.artist)}${r.year ? ' · ' + r.year : ''}</div>
+    </button>`).join('') + '</div>';
+}
+$('#list').addEventListener('click', e => { const b = e.target.closest('.item'); if (b) openDetail(b.dataset.id); });
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { view.tab = b.dataset.tab; render(); scrollTo(0, 0); });
+$('#sort').onchange = e => { view.sort = e.target.value; LS.set('sh.sort', view.sort); render(); };
+$('#filter').oninput = e => { view.q = e.target.value; render(); };
+
+/* ---------------- Discogs ---------------- */
+async function dg(path, params = {}) {
+  if (!cfg.discogs) throw new Error('Lägg in din Discogs-token under ⚙︎ först.');
+  const u = new URL('https://api.discogs.com' + path);
+  for (const [k, v] of Object.entries(params)) if (v) u.searchParams.set(k, v);
+  u.searchParams.set('token', cfg.discogs);
+  const r = await fetch(u);
+  if (r.status === 401) throw new Error('Discogs godkände inte token. Kolla den under ⚙︎.');
+  if (r.status === 429) throw new Error('Discogs: för många sökningar just nu, vänta en minut.');
+  if (!r.ok) throw new Error('Discogs svarade ' + r.status);
+  return r.json();
+}
+const dgSearch = p => dg('/database/search', { per_page: 10, ...p }).then(j => j.results || []);
+
+function splitTitle(t) {
+  const i = (t || '').indexOf(' - ');
+  const clean = s => s.replace(/\s*\(\d+\)$/, '').replace(/\*$/, '').trim();
+  return i < 0 ? { artist: '', title: t || '' } : { artist: clean(t.slice(0, i)), title: t.slice(i + 3).trim() };
+}
+function toCand(r) {
+  const img = s => (s && !/spacer\.gif$/.test(s)) ? s : '';
+  return {
+    dType: r.type, dId: r.id, masterId: r.master_id || (r.type === 'master' ? r.id : null),
+    ...splitTitle(r.title), year: parseInt(r.year) || null,
+    cover: img(r.cover_image), thumb: img(r.thumb) || img(r.cover_image),
+    format: [...new Set(r.format || [])].slice(0, 3).join(', '),
+    label: (r.label || [])[0] || '', country: r.country || '', catno: r.catno || ''
+  };
+}
+
+async function findFromInfo(info) {
+  const tries = [];
+  if (info.barcode) tries.push({ barcode: String(info.barcode).replace(/\D/g, ''), type: 'release' });
+  if (info.catno) tries.push({ catno: info.catno, artist: info.artist, type: 'release' });
+  if (info.artist && info.title) {
+    tries.push({ artist: info.artist, release_title: info.title, type: 'master' });
+    tries.push({ artist: info.artist, release_title: info.title, type: 'release' });
+  }
+  const q = [info.artist, info.title].filter(Boolean).join(' ');
+  if (q) tries.push({ q, type: 'master' }, { q, type: 'release' });
+  for (const p of tries) {
+    const res = await dgSearch(p);
+    if (res.length) return res.map(toCand);
+  }
+  return [];
+}
+async function findFromText(q) {
+  let res = await dgSearch({ q, type: 'master' });
+  if (res.length < 3) res = res.concat(await dgSearch({ q, type: 'release', per_page: 8 }));
+  return res.map(toCand);
+}
+
+/* ---------------- Claude: läs av fotot ---------------- */
+async function toJpegBase64(file, max = 1400) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+}
+async function readPhoto(b64) {
+  if (!cfg.claudeKey) throw new Error('Lägg in din Claude API-nyckel under ⚙︎ först.');
+  const prompt = `Bilden visar en skiva (LP, singel eller CD): omslag, baksida, etikett eller streckkod.
+Identifiera skivan. Svara ENBART med JSON i detta format, null för det du inte vet:
+{"artist": "...", "title": "...", "year": 1977, "label": "...", "catno": "...", "barcode": "...", "confidence": "high|medium|low"}
+- barcode: bara siffrorna om en streckkod syns.
+- catno: katalognumret som det står på skivan.
+- Om du känner igen omslaget utan text, fyll i artist och title ändå.`;
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': cfg.claudeKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: cfg.model || 'claude-sonnet-5-5',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+        { type: 'text', text: prompt }
+      ] }]
+    })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    if (r.status === 401) throw new Error('Claude godkände inte API-nyckeln. Kolla den under ⚙︎.');
+    throw new Error('Claude: ' + (j.error?.message || r.status));
+  }
+  const text = (j.content || []).map(c => c.text || '').join('');
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Kunde inte tolka svaret från Claude.');
+  return JSON.parse(m[0]);
+}
+
+/* ---------------- Lägg till ---------------- */
+let lastCands = [];
+function openAdd(def = 'have') {
+  addDefault = def;
+  $('#addView').classList.add('open');
+  $('#addStatus').innerHTML = ''; $('#addResults').innerHTML = '';
+  $('#aq').value = '';
+}
+const closeAdd = () => $('#addView').classList.remove('open');
+$('#btnAdd').onclick = () => openAdd(view.tab);
+$('#closeAdd').onclick = closeAdd;
+
+function busy(t) { $('#addStatus').innerHTML = `<div class="msg"><span class="spin"></span>${esc(t)}</div>`; }
+function fail(e) { $('#addStatus').innerHTML = `<div class="msg">${esc(e.message || e)}</div>`; }
+
+async function onPhoto(file) {
+  if (!file) return;
+  $('#addResults').innerHTML = '';
+  try {
+    busy('Läser av bilden…');
+    const info = await readPhoto(await toJpegBase64(file));
+    const what = [info.artist, info.title].filter(Boolean).join(' – ') || 'okänd skiva';
+    $('#aq').value = [info.artist, info.title].filter(Boolean).join(' ');
+    busy(`Hittade "${what}". Söker i Discogs…`);
+    const cands = await findFromInfo(info);
+    $('#addStatus').innerHTML = `<div class="read">Claude läste: <b>${esc(what)}</b>${info.year ? ' (' + esc(info.year) + ')' : ''}${
+      info.catno ? ' · ' + esc(info.catno) : ''}${info.confidence === 'low' ? '<br><span class="m">Osäker gissning – rätta sökningen ovan om det blev fel.</span>' : ''}</div>`;
+    showCands(cands);
+  } catch (e) { fail(e); }
+}
+$('#camInput').onchange = e => { onPhoto(e.target.files[0]); e.target.value = ''; };
+$('#picInput').onchange = e => { onPhoto(e.target.files[0]); e.target.value = ''; };
+
+$('#aq').addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim(); if (!q) return;
+  e.target.blur();
+  try { busy('Söker…'); $('#addResults').innerHTML = ''; const c = await findFromText(q); $('#addStatus').innerHTML = ''; showCands(c); }
+  catch (err) { fail(err); }
+});
+
+function showCands(cands) {
+  lastCands = cands;
+  if (!cands.length) { $('#addResults').innerHTML = '<div class="msg">Ingen träff i Discogs. Prova att skriva artist och album i sökfältet.</div>'; return; }
+  $('#addResults').innerHTML = cands.map((c, i) => {
+    const ex = recs.find(r => r.dId === c.dId || (c.masterId && r.masterId === c.masterId));
+    const meta = [c.year, c.format, c.label, c.country].filter(Boolean).join(' · ');
+    return `<div class="cand">
+      ${c.thumb ? `<img src="${esc(c.thumb)}" alt="">` : '<div class="ph">♪</div>'}
+      <div><div class="t">${esc(c.title)}</div><div class="m">${esc(c.artist)}</div><div class="m">${esc(meta)}</div>
+        <div class="btns">${ex ? `<span class="m">Finns redan under ${ex.status === 'have' ? 'Har' : 'Vill ha'}</span>` : `
+          <button data-i="${i}" data-s="have" class="${addDefault === 'have' ? 'on' : ''}">Har den</button>
+          <button data-i="${i}" data-s="want" class="${addDefault === 'want' ? 'on' : ''}">Vill ha</button>`}</div>
+      </div></div>`;
+  }).join('') + '<p class="note">Listan kommer från Discogs. "Master" är albumet i allmänhet, övriga rader är specifika utgåvor.</p>';
+}
+$('#addResults').addEventListener('click', e => {
+  const b = e.target.closest('button[data-i]'); if (!b) return;
+  const c = lastCands[+b.dataset.i];
+  const rec = { id: uid(), status: b.dataset.s, added: Date.now(), ...c };
+  recs.push(rec); saveRecs();
+  view.tab = rec.status; render();
+  closeAdd();
+  toast(rec.status === 'have' ? `${rec.title} ligger nu i hyllan` : `${rec.title} ligger på önskelistan`);
+  matchSpotify(rec);
+});
+
+/* ---------------- Detaljvy ---------------- */
+let cur = null;
+function openDetail(id) {
+  cur = recs.find(r => r.id === id); if (!cur) return;
+  drawDetail();
+  $('#detail').classList.add('open');
+  loadTracks(cur);
+}
+function drawDetail() {
+  const r = cur;
+  const meta = [r.year, r.format, r.label, r.country].filter(Boolean).join(' · ');
+  $('#detailBody').innerHTML = `
+    ${r.cover ? `<img class="bigcover" src="${esc(r.cover)}" alt="">` : ''}
+    <div class="pad">
+      <h2>${esc(r.title)}</h2>
+      <div>${esc(r.artist)}</div>
+      <div class="m">${esc(meta)}</div>
+      <div class="actions">
+        <button class="play" id="dPlay">▶ Spela i Spotify</button>
+        <div class="split">
+          <button id="dHave" class="${r.status === 'have' ? 'on' : ''}">Har den</button>
+          <button id="dWant" class="${r.status === 'want' ? 'on' : ''}">Vill ha</button>
+        </div>
+      </div>
+      <p class="note" id="dSp">${r.spotifyName ? 'Spotify: ' + esc(r.spotifyName) : sp ? '' : 'Spela öppnar en sökning i Spotify. Logga in på Spotify under ⚙︎ för att hamna direkt på albumet.'}</p>
+      <div class="tracks" id="dTracks"><div class="msg"><span class="spin"></span>Hämtar låtlistan…</div></div>
+      <div class="actions">
+        ${sp ? '<button id="dFix">Fel album i Spotify? Välj ett annat</button><div id="dAlts"></div>' : ''}
+        ${r.dId ? `<button id="dDiscogs">Visa på Discogs</button>` : ''}
+        <button class="danger" id="dDel">Ta bort</button>
+      </div>
+    </div>`;
+  $('#dPlay').onclick = () => playAlbum(r);
+  $('#dHave').onclick = () => setStatus('have');
+  $('#dWant').onclick = () => setStatus('want');
+  if ($('#dDiscogs')) $('#dDiscogs').onclick = () => openUrl(`https://www.discogs.com/${r.dType}/${r.dId}`);
+  if ($('#dFix')) $('#dFix').onclick = showAlts;
+  $('#dDel').onclick = e => {
+    if (!e.target.dataset.sure) { e.target.dataset.sure = 1; e.target.textContent = 'Tryck igen för att ta bort'; return; }
+    recs = recs.filter(x => x !== r); saveRecs(); closeDetail(); render(); toast('Borttagen');
+  };
+  if (r.tracks) drawTracks();
+}
+function setStatus(s) {
+  cur.status = s; saveRecs(); render();
+  $('#dHave').classList.toggle('on', s === 'have'); $('#dWant').classList.toggle('on', s === 'want');
+  toast(s === 'have' ? 'Flyttad till Har' : 'Flyttad till Vill ha');
+}
+const closeDetail = () => { $('#detail').classList.remove('open'); cur = null; };
+$('#detail').addEventListener('click', e => { if (e.target.id === 'detail') closeDetail(); });
+
+async function loadTracks(r) {
+  if (r.tracks) return;
+  try {
+    const path = r.dType === 'master' ? `/masters/${r.dId}` : `/releases/${r.dId}`;
+    const j = await dg(path);
+    r.tracks = (j.tracklist || []).map(t => ({ p: t.position || '', t: t.title || '', d: t.duration || '', h: t.type_ === 'heading' }));
+    if (!r.year && j.year) r.year = j.year;
+    saveRecs();
+    if (cur === r) drawTracks();
+  } catch (e) {
+    if (cur === r) $('#dTracks').innerHTML = `<div class="msg">${esc(e.message)}</div>`;
+  }
+}
+function drawTracks() {
+  const r = cur;
+  if (!r.tracks.length) { $('#dTracks').innerHTML = '<div class="msg">Ingen låtlista hos Discogs.</div>'; return; }
+  $('#dTracks').innerHTML = r.tracks.map((t, i) => t.h
+    ? `<div class="tr h">${esc(t.t)}</div>`
+    : `<div class="tr" data-i="${i}"><span class="p">${esc(t.p)}</span><span>${esc(t.t)}</span><span class="d">${esc(t.d)}</span></div>`).join('')
+    + '<p class="note">Tryck på en låt för att spela den i Spotify.</p>';
+  $('#dTracks').onclick = e => { const el = e.target.closest('.tr[data-i]'); if (el) playTrack(r, r.tracks[+el.dataset.i]); };
+}
+
+/* ---------------- Spotify ---------------- */
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function spLogin() {
+  if (!cfg.spClient) { toast('Fyll i Spotify Client ID först.'); return; }
+  saveCfg();
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  LS.set('sh.pkce', verifier);
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  const u = new URL('https://accounts.spotify.com/authorize');
+  Object.entries({ client_id: cfg.spClient, response_type: 'code', redirect_uri: REDIRECT,
+    code_challenge_method: 'S256', code_challenge: challenge }).forEach(([k, v]) => u.searchParams.set(k, v));
+  location.href = u;
+}
+async function spTokenCall(body) {
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: cfg.spClient, ...body })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error_description || j.error || 'Spotify ' + r.status);
+  sp = { access: j.access_token, refresh: j.refresh_token || sp?.refresh, exp: Date.now() + j.expires_in * 1000 };
+  LS.set('sh.sp', sp);
+}
+async function spAccess() {
+  if (!sp) return null;
+  if (Date.now() < sp.exp - 60000) return sp.access;
+  try { await spTokenCall({ grant_type: 'refresh_token', refresh_token: sp.refresh }); return sp.access; }
+  catch { sp = null; LS.set('sh.sp', null); return null; }
+}
+async function spGet(path) {
+  const tok = await spAccess(); if (!tok) return null;
+  const r = await fetch('https://api.spotify.com/v1' + path, { headers: { Authorization: 'Bearer ' + tok } });
+  if (r.status === 401) { sp.exp = 0; return null; }
+  if (!r.ok) throw new Error('Spotify ' + r.status);
+  return r.json();
+}
+async function spAlbums(r) {
+  let j = await spGet('/search?type=album&limit=10&q=' + encodeURIComponent(`album:${r.title} artist:${r.artist}`));
+  let items = j?.albums?.items || [];
+  if (!items.length) { j = await spGet('/search?type=album&limit=10&q=' + encodeURIComponent(`${r.artist} ${r.title}`)); items = j?.albums?.items || []; }
+  return items;
+}
+async function matchSpotify(r) {
+  if (!sp) return;
+  try {
+    const items = await spAlbums(r);
+    const t = norm(r.title), a = norm(r.artist);
+    const best = items.find(x => norm(x.name) === t && x.artists.some(y => norm(y.name) === a))
+      || items.find(x => norm(x.name).includes(t) && x.artists.some(y => norm(y.name).includes(a) || a.includes(norm(y.name))))
+      || items[0];
+    if (best) { r.spotifyId = best.id; r.spotifyName = `${best.name} – ${best.artists.map(y => y.name).join(', ')}`; r.spTracks = null; saveRecs(); }
+    if (cur === r) { const el = $('#dSp'); if (el) el.textContent = r.spotifyName ? 'Spotify: ' + r.spotifyName : ''; }
+  } catch {}
+}
+function playAlbum(r) {
+  if (r.spotifyId) openUrl('https://open.spotify.com/album/' + r.spotifyId);
+  else openUrl('https://open.spotify.com/search/' + encodeURIComponent(`${r.artist} ${r.title}`));
+}
+async function playTrack(r, t) {
+  const fallback = () => openUrl('https://open.spotify.com/search/' + encodeURIComponent(`${r.artist} ${t.t}`));
+  if (!r.spotifyId || !sp) return fallback();
+  try {
+    if (!r.spTracks) {
+      const j = await spGet(`/albums/${r.spotifyId}/tracks?limit=50`);
+      if (!j) return fallback();
+      r.spTracks = j.items.map(x => ({ id: x.id, n: norm(x.name) })); saveRecs();
+    }
+    const n = norm(t.t);
+    const hit = r.spTracks.find(x => x.n === n) || r.spTracks.find(x => x.n.startsWith(n) || n.startsWith(x.n));
+    hit ? openUrl('https://open.spotify.com/track/' + hit.id) : fallback();
+  } catch { fallback(); }
+}
+async function showAlts() {
+  const box = $('#dAlts'); box.innerHTML = '<div class="msg"><span class="spin"></span>Söker i Spotify…</div>';
+  try {
+    const items = await spAlbums(cur);
+    if (!items.length) { box.innerHTML = '<div class="msg">Inga album hittades.</div>'; return; }
+    box.innerHTML = items.map((x, i) => `<div class="cand" data-i="${i}" style="cursor:pointer">
+      ${x.images?.length ? `<img src="${esc(x.images[x.images.length - 1].url)}" alt="">` : '<div class="ph">♪</div>'}
+      <div><div class="t">${esc(x.name)}</div><div class="m">${esc(x.artists.map(y => y.name).join(', '))} · ${esc((x.release_date || '').slice(0, 4))}</div></div></div>`).join('');
+    box.onclick = e => {
+      const el = e.target.closest('.cand'); if (!el) return;
+      const x = items[+el.dataset.i];
+      cur.spotifyId = x.id; cur.spotifyName = `${x.name} – ${x.artists.map(y => y.name).join(', ')}`; cur.spTracks = null; saveRecs();
+      box.innerHTML = ''; $('#dSp').textContent = 'Spotify: ' + cur.spotifyName; toast('Spotify-album bytt');
+    };
+  } catch (e) { box.innerHTML = `<div class="msg">${esc(e.message)}</div>`; }
+}
+async function matchAll() {
+  for (const r of recs.filter(r => !r.spotifyId)) { await matchSpotify(r); await new Promise(res => setTimeout(res, 300)); }
+}
+
+/* ---------------- Inställningar ---------------- */
+function drawSpBox() {
+  $('#spBox').innerHTML = sp
+    ? '<button id="spOut">Logga ut från Spotify</button>'
+    : '<button id="spIn" class="play">Logga in på Spotify</button>';
+  if ($('#spIn')) $('#spIn').onclick = () => { cfg.spClient = $('#spClient').value.trim(); spLogin(); };
+  if ($('#spOut')) $('#spOut').onclick = () => { sp = null; LS.set('sh.sp', null); drawSpBox(); toast('Utloggad från Spotify'); };
+}
+function openSettings() {
+  $('#claudeKey').value = cfg.claudeKey || '';
+  $('#discogsToken').value = cfg.discogs || '';
+  $('#spClient').value = cfg.spClient || '';
+  $('#redirUri').textContent = REDIRECT;
+  $('#backup').value = '';
+  drawSpBox();
+  $('#settings').classList.add('open');
+}
+function closeSettings() {
+  cfg.claudeKey = $('#claudeKey').value.trim();
+  cfg.discogs = $('#discogsToken').value.trim();
+  cfg.spClient = $('#spClient').value.trim();
+  saveCfg(); render();
+  $('#settings').classList.remove('open');
+}
+$('#btnSettings').onclick = openSettings;
+$('#closeSettings').onclick = closeSettings;
+$('#settings').addEventListener('click', e => { if (e.target.id === 'settings') closeSettings(); });
+$('#btnExport').onclick = () => {
+  $('#backup').value = JSON.stringify({ app: 'skivhyllan', v: 1, recs: recs.map(({ spTracks, ...r }) => r) });
+  $('#backup').select(); toast('Markera allt och kopiera texten');
+};
+$('#btnImport').onclick = e => {
+  let data; try { data = JSON.parse($('#backup').value); } catch { toast('Det där ser inte ut som en backup.'); return; }
+  const list = Array.isArray(data) ? data : data.recs;
+  if (!Array.isArray(list)) { toast('Hittade inga skivor i texten.'); return; }
+  let n = 0;
+  for (const r of list) if (r && r.title && !recs.some(x => x.id === r.id)) { recs.push(r); n++; }
+  saveRecs(); render(); toast(`${n} skivor importerade`);
+};
+
+/* ---------------- Bakåtknapp i appen ---------------- */
+window.__back = () => {
+  if ($('#settings').classList.contains('open')) { closeSettings(); return true; }
+  if ($('#detail').classList.contains('open')) { closeDetail(); return true; }
+  if ($('#addView').classList.contains('open')) { closeAdd(); return true; }
+  return false;
+};
+
+/* ---------------- Start ---------------- */
+(async () => {
+  const p = new URLSearchParams(location.search);
+  if (p.get('code') || p.get('error')) {
+    history.replaceState(null, '', location.pathname);
+    if (p.get('code')) {
+      try {
+        await spTokenCall({ grant_type: 'authorization_code', code: p.get('code'), redirect_uri: REDIRECT, code_verifier: LS.get('sh.pkce', '') });
+        toast('Inloggad på Spotify');
+        matchAll();
+      } catch (e) { toast('Spotify-inloggningen misslyckades: ' + e.message, 5000); }
+    } else toast('Spotify-inloggningen avbröts');
+  }
+  render();
+})();
+</script>
+</body>
+</html>

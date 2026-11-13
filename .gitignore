@@ -1,0 +1,6 @@
+.gradle/
+build/
+android/.gradle/
+android/app/build/
+android/build/
+local.properties
