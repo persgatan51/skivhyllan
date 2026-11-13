@@ -19,10 +19,9 @@
   button.on{background:var(--acc);color:#111;border-color:var(--acc);font-weight:600}
   input,select,textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
   textarea{min-height:120px;font-size:12px;font-family:ui-monospace,monospace}
-  .tools{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+  .tools{margin-top:10px}
   .tools select{width:auto;padding:8px}
   .tabs{display:flex;gap:6px;margin-top:10px}
-  main{padding:12px 14px 100px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:12px}
   .item{background:none;border:0;border-radius:10px;padding:0;text-align:left}
   .cover,.ph{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;background:var(--card);display:block}
@@ -72,31 +71,81 @@
   .read{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;font-size:14px}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--mut);border-top-color:transparent;border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes s{to{transform:rotate(360deg)}}
+  button.ico{padding:6px 10px}
+  [hidden]{display:none !important}
+  main{padding:0 0 20px}
+  #gridView{padding:12px 14px 100px}
+  .crate{position:relative;overflow:hidden;isolation:isolate;touch-action:none;user-select:none;-webkit-user-select:none;
+         background:radial-gradient(120% 80% at 50% 0%,#1d2129 0%,#0f1115 70%)}
+  .stage{position:absolute;inset:0;perspective:1100px;perspective-origin:50% 0%}
+  .rec{position:absolute;left:50%;bottom:calc(var(--fh) * .38);width:var(--s);height:var(--s);margin-left:calc(var(--s) / -2);
+       transform-origin:50% 100%;will-change:transform;border-radius:3px;background:#22262e;
+       box-shadow:0 -1px 0 rgba(255,255,255,.08) inset,0 14px 34px rgba(0,0,0,.65)}
+  .rec img{width:100%;height:100%;object-fit:cover;display:block;border-radius:3px;pointer-events:none;-webkit-user-drag:none}
+  .rec::after{content:"";position:absolute;inset:0;border-radius:3px;background:#05060a;opacity:var(--sh,0);pointer-events:none}
+  .rec .sleeve{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:9%;
+       background:linear-gradient(135deg,#2b303a,#1b1e25);border-radius:3px}
+  .rec .sleeve b{font-size:calc(var(--s) * .085);line-height:1.1}
+  .rec .sleeve span{font-size:calc(var(--s) * .055);color:var(--mut);margin-top:4px}
+  .front{position:absolute;left:50%;bottom:0;width:calc(var(--s) + 44px);height:var(--fh);transform:translateX(-50%);z-index:5000;
+       border-radius:12px 12px 4px 4px;
+       background:repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 2px,transparent 2px 11px),
+                  linear-gradient(180deg,#6a4a2f 0%,#55391f 55%,#3f2a17 100%);
+       box-shadow:inset 0 2px 0 rgba(255,255,255,.15),inset 0 -6px 12px rgba(0,0,0,.35),0 -10px 26px rgba(0,0,0,.6)}
+  .front .handle{position:absolute;left:50%;top:30%;width:32%;height:20%;transform:translateX(-50%);border-radius:999px;
+       background:#1a120b;box-shadow:inset 0 3px 6px rgba(0,0,0,.8),0 1px 0 rgba(255,255,255,.12)}
+  .front .tab{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-weight:800;color:var(--acc);
+       font-size:calc(var(--fh) * .5);line-height:1;text-shadow:0 2px 0 rgba(0,0,0,.4);font-family:Georgia,serif}
+  .rail{position:absolute;right:2px;top:10px;bottom:10px;width:26px;display:flex;flex-direction:column;justify-content:center;
+       align-items:center;z-index:6000;touch-action:none}
+  .rail b{flex:0 1 22px;display:flex;align-items:center;justify-content:center;width:26px;font-size:11px;color:var(--mut);font-weight:600}
+  .rail b.on{color:var(--acc);font-size:13px}
+  .bubble{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(.8);width:96px;height:96px;border-radius:20px;
+       background:rgba(15,17,21,.85);border:1px solid var(--line);color:var(--acc);font:800 54px/96px Georgia,serif;text-align:center;
+       opacity:0;transition:.15s;z-index:7000;pointer-events:none}
+  .bubble.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--mut);padding:30px;z-index:6500}
+  .empty:empty{display:none}
+  .now{display:flex;align-items:center;gap:12px;padding:12px 90px 0 16px;min-height:96px}
+  .ninfo{flex:1;min-width:0;cursor:pointer}
+  .nt{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .na{color:var(--fg);opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nc{font-size:12px;color:var(--mut);margin-top:3px}
+  .nplay{width:52px;height:52px;border-radius:50%;background:var(--sp);border-color:var(--sp);color:#04140a;font-size:20px;padding:0;flex:none}
 </style>
 </head>
 <body>
 <header>
   <div class="row">
     <h1>Skivhyllan</h1>
-    <button id="btnSettings" aria-label="Inställningar">⚙︎</button>
+    <button id="btnSearch" class="ico" aria-label="Sök">🔍</button>
+    <button id="btnView" class="ico" aria-label="Byt vy">▦</button>
+    <button id="btnSettings" class="ico" aria-label="Inställningar">⚙︎</button>
   </div>
   <div class="tabs">
     <button data-tab="have" class="on">Har</button>
     <button data-tab="want">Vill ha</button>
   </div>
-  <div class="tools">
-    <input id="filter" type="search" placeholder="Sök i hyllan" autocomplete="off">
-    <select id="sort" aria-label="Sortering">
-      <option value="artist">Artist</option>
-      <option value="title">Titel</option>
-      <option value="year">År</option>
-      <option value="added">Senast tillagd</option>
-    </select>
+  <div class="tools" id="searchRow" hidden>
+    <input id="filter" type="search" placeholder="Sök artist eller album i hyllan" autocomplete="off">
   </div>
 </header>
 
 <main>
-  <div id="list"></div>
+  <section id="crateView">
+    <div class="crate" id="crate">
+      <div class="stage" id="stage"></div>
+      <div class="front"><span class="tab" id="curLetter"></span><span class="handle"></span></div>
+      <div class="rail" id="rail"></div>
+      <div class="bubble" id="bubble"></div>
+      <div class="empty" id="crateEmpty"></div>
+    </div>
+    <div class="now" id="now">
+      <div class="ninfo" id="nInfo"><div class="nt" id="nTitle"></div><div class="na" id="nArtist"></div><div class="nc" id="nCount"></div></div>
+      <button class="nplay" id="nPlay" aria-label="Spela i Spotify">▶</button>
+    </div>
+  </section>
+  <section id="gridView" hidden><div id="list"></div></section>
 </main>
 
 <button class="fab" id="btnAdd" aria-label="Lägg till skiva">+</button>
@@ -118,6 +167,10 @@
 
 <div class="sheet" id="settings"><div class="panel"><div class="pad">
   <h2>Inställningar</h2>
+
+  <label class="f" for="geminiKey">Gemini API-nyckel (känner igen omslag utan streckkod)</label>
+  <input id="geminiKey" autocomplete="off" spellcheck="false" placeholder="AIza…">
+  <p class="note">Gratis på <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a>. Används bara när fotot saknar streckkod. <span id="gemToday"></span></p>
 
   <label class="f" for="discogsToken">Discogs personal token (skivdata)</label>
   <input id="discogsToken" autocomplete="off" spellcheck="false" placeholder="Klistra in token">
@@ -154,7 +207,7 @@ const REDIRECT = location.origin + location.pathname;
 let cfg = LS.get('sh.cfg', {});
 let sp = LS.get('sh.sp', null);           // Spotify-token
 let recs = LS.get('sh.recs', []);          // skivorna
-let view = { tab: 'have', sort: LS.get('sh.sort', 'artist'), q: '' };
+let view = { tab: 'have', q: '' };
 let addDefault = 'have';
 
 const saveRecs = () => LS.set('sh.recs', recs);
@@ -174,33 +227,31 @@ const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ
 const sortKey = s => String(s || '').replace(/^(the|a)\s+/i, '');
 
 /* ---------------- Hyllan ---------------- */
+const cmpSv = (a, b) => String(a || '').localeCompare(String(b || ''), 'sv', { sensitivity: 'base' });
+// Bokstavsordning på artist (utan "The"), sedan årtal, sedan titel.
+const sortRecs = list => list.sort((a, b) =>
+  cmpSv(sortKey(a.artist), sortKey(b.artist)) || (a.year || 9999) - (b.year || 9999) || cmpSv(a.title, b.title));
+const letterOf = r => { const c = sortKey(r.artist).trim().charAt(0).toUpperCase(); return /\p{L}/u.test(c) ? c : '#'; };
+view.mode = LS.get('sh.mode', 'crate');
+
 function render() {
   const have = recs.filter(r => r.status === 'have').length;
   const want = recs.length - have;
   document.querySelector('[data-tab=have]').textContent = `Har (${have})`;
   document.querySelector('[data-tab=want]').textContent = `Vill ha (${want})`;
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === view.tab));
-  $('#sort').value = view.sort;
+  $('#btnView').textContent = view.mode === 'crate' ? '▦' : '▤';
+  $('#crateView').hidden = view.mode !== 'crate';
+  $('#gridView').hidden = view.mode === 'crate';
 
   const q = norm(view.q);
-  let list = recs.filter(r => r.status === view.tab && (!q || norm(r.artist + ' ' + r.title).includes(q)));
-  const cmp = (a, b) => a.localeCompare(b, 'sv', { sensitivity: 'base' });
-  list.sort({
-    artist: (a, b) => cmp(sortKey(a.artist), sortKey(b.artist)) || (a.year || 0) - (b.year || 0),
-    title: (a, b) => cmp(a.title, b.title),
-    year: (a, b) => (a.year || 9999) - (b.year || 9999) || cmp(sortKey(a.artist), sortKey(b.artist)),
-    added: (a, b) => b.added - a.added
-  }[view.sort]);
+  const list = sortRecs(recs.filter(r => r.status === view.tab && (!q || norm(r.artist + ' ' + r.title).includes(q))));
+  const emptyMsg = !recs.length
+    ? `Backen är tom.<br>Tryck på <b>+</b> för att fota en skiva eller söka fram en.${!cfg.discogs ? '<br><br>Börja med att lägga in nycklarna under ⚙︎.' : ''}`
+    : !list.length ? (q ? 'Inga träffar.' : view.tab === 'want' ? 'Önskelistan är tom.' : 'Inga skivor här än.') : '';
 
-  if (!recs.length) {
-    $('#list').innerHTML = `<div class="msg">Hyllan är tom.<br>Tryck på <b>+</b> för att fota en skiva eller söka fram en.${
-      !cfg.discogs ? '<br><br>Börja med att lägga in nycklarna under ⚙︎.' : ''}</div>`;
-    return;
-  }
-  if (!list.length) {
-    $('#list').innerHTML = `<div class="msg">${q ? 'Inga träffar.' : view.tab === 'want' ? 'Önskelistan är tom.' : 'Inga skivor här än.'}</div>`;
-    return;
-  }
+  if (view.mode === 'crate') { crateSet(list, emptyMsg); return; }
+  if (emptyMsg) { $('#list').innerHTML = `<div class="msg">${emptyMsg}</div>`; return; }
   $('#list').innerHTML = '<div class="grid">' + list.map(r => `
     <button class="item" data-id="${r.id}">
       ${r.cover ? `<img class="cover" loading="lazy" src="${esc(r.cover)}" alt="">` : '<div class="ph">♪</div>'}
@@ -209,9 +260,166 @@ function render() {
     </button>`).join('') + '</div>';
 }
 $('#list').addEventListener('click', e => { const b = e.target.closest('.item'); if (b) openDetail(b.dataset.id); });
-document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { view.tab = b.dataset.tab; render(); scrollTo(0, 0); });
-$('#sort').onchange = e => { view.sort = e.target.value; LS.set('sh.sort', view.sort); render(); };
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { view.tab = b.dataset.tab; crate.pos = 0; crate.target = null; render(); scrollTo(0, 0); });
 $('#filter').oninput = e => { view.q = e.target.value; render(); };
+$('#btnSearch').onclick = () => {
+  const row = $('#searchRow'); row.hidden = !row.hidden;
+  if (row.hidden) { $('#filter').value = ''; view.q = ''; render(); } else $('#filter').focus();
+  crateLayout();
+};
+$('#btnView').onclick = () => { view.mode = view.mode === 'crate' ? 'grid' : 'crate'; LS.set('sh.mode', view.mode); render(); crateLayout(); };
+
+/* ---------------- Skivbacken ---------------- */
+const crate = { pos: LS.get('sh.pos', 0), target: null, list: [], els: new Map(), S: 300, shown: -1, raf: 0, drag: null };
+const clampPos = p => Math.max(0, Math.min(crate.list.length - 1, p));
+
+function crateLayout() {
+  if (view.mode !== 'crate') return;
+  const box = $('#crate');
+  const h = Math.max(260, innerHeight - $('header').offsetHeight - 110);
+  box.style.height = h + 'px';
+  const S = Math.round(Math.min(innerWidth * 0.72, h * 0.6, 420));
+  crate.S = S;
+  box.style.setProperty('--s', S + 'px');
+  box.style.setProperty('--fh', Math.round(S * 0.36) + 'px');
+  crateDraw(true);
+}
+function crateSet(list, emptyMsg) {
+  const curId = crate.list[Math.round(crate.pos)]?.id;
+  crate.list = list;
+  crate.els.forEach(el => el.remove()); crate.els.clear();
+  $('#crateEmpty').innerHTML = emptyMsg || '';
+  const keep = curId ? list.findIndex(r => r.id === curId) : -1;
+  crate.pos = keep >= 0 ? keep : clampPos(Math.round(crate.pos)) || 0;
+  crate.target = null;
+  // Bokstavslisten
+  const seen = new Set();
+  $('#rail').innerHTML = list.length > 6 ? list.map((r, i) => {
+    const L = letterOf(r); if (seen.has(L)) return ''; seen.add(L);
+    return `<b data-i="${i}" data-l="${esc(L)}">${esc(L)}</b>`;
+  }).join('') : '';
+  crate.shown = -1;
+  crateLayout();
+}
+function crateEl(i) {
+  let el = crate.els.get(i);
+  if (el) return el;
+  const r = crate.list[i];
+  el = document.createElement('div');
+  el.className = 'rec';
+  el.innerHTML = r.cover ? `<img src="${esc(r.cover)}" alt="" decoding="async">`
+    : `<div class="sleeve"><b>${esc(r.title)}</b><span>${esc(r.artist)}</span></div>`;
+  $('#stage').appendChild(el);
+  crate.els.set(i, el);
+  return el;
+}
+function crateDraw(force) {
+  const { list, S } = crate, n = list.length, pos = crate.pos;
+  if (!n) { updateNow(); return; }
+  const lo = Math.max(0, Math.floor(pos) - 2), hi = Math.min(n - 1, Math.floor(pos) + 8);
+  crate.els.forEach((el, i) => { if (i < lo || i > hi) { el.remove(); crate.els.delete(i); } });
+  for (let i = lo; i <= hi; i++) {
+    const d = i - pos, el = crateEl(i);
+    let rx, y, z, sh, op = 1;
+    if (d >= 0) {                       // står kvar i backen, lutar bakåt
+      rx = 7; y = -d * 0.075 * S; z = -d * 0.12 * S; sh = Math.min(0.75, d * 0.11); op = Math.max(0, Math.min(1, 8 - d));
+    } else if (d >= -1) {               // bläddras fram mot dig
+      const t = -d; rx = 7 - t * 87; y = t * 0.02 * S; z = t * 0.07 * S; sh = t * 0.35;
+    } else {                            // ligger framfälld mot framkanten
+      const t = Math.min(1, -d - 1); rx = -80 - t * 4; y = 0.02 * S; z = 0.07 * S + t * 0.02 * S; sh = 0.35 + t * 0.2; op = 1 - t;
+    }
+    el.style.transform = `translate3d(0,${y.toFixed(1)}px,${z.toFixed(1)}px) rotateX(${rx.toFixed(2)}deg)`;
+    el.style.zIndex = String(Math.round(2000 - d * 10));
+    el.style.setProperty('--sh', sh.toFixed(3));
+    el.style.opacity = op.toFixed(3);
+  }
+  const cur = Math.round(pos);
+  if (cur !== crate.shown || force) { crate.shown = cur; updateNow(); }
+}
+function updateNow() {
+  const r = crate.list[Math.round(crate.pos)];
+  $('#now').style.visibility = r ? 'visible' : 'hidden';
+  if (!r) { $('#curLetter').textContent = ''; return; }
+  $('#nTitle').textContent = r.title;
+  $('#nArtist').textContent = r.artist + (r.year ? ' · ' + r.year : '');
+  $('#nCount').textContent = `${Math.round(crate.pos) + 1} av ${crate.list.length}` + (LS.get('sh.flipped', false) ? '' : ' · dra nedåt för att bläddra');
+  const L = letterOf(r);
+  $('#curLetter').textContent = L;
+  document.querySelectorAll('#rail b').forEach(b => b.classList.toggle('on', b.dataset.l === L));
+  LS.set('sh.pos', Math.round(crate.pos));
+}
+function crateGo(i) {
+  crate.target = clampPos(i);
+  if (!crate.raf) crate.raf = requestAnimationFrame(crateTick);
+}
+function crateTick() {
+  crate.raf = 0;
+  if (crate.target == null) return;
+  const diff = crate.target - crate.pos;
+  crate.pos = Math.abs(diff) < 0.002 ? crate.target : crate.pos + diff * 0.2;
+  crateDraw();
+  if (crate.pos === crate.target) crate.target = null;
+  else crate.raf = requestAnimationFrame(crateTick);
+}
+function crateFocus(id) {
+  const i = crate.list.findIndex(r => r.id === id);
+  if (i >= 0) crateGo(i);
+}
+
+// Dra: fingret nedåt = fäll skivan framåt = nästa skiva.
+const stage = $('#crate');
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('.rail') || !crate.list.length) return;
+  crate.target = null;
+  crate.drag = { y: e.clientY, pos: crate.pos, t: performance.now(), hist: [[performance.now(), e.clientY]], moved: 0 };
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e => {
+  const d = crate.drag; if (!d) return;
+  const dy = e.clientY - d.y;
+  d.moved = Math.max(d.moved, Math.abs(dy));
+  crate.pos = clampPos(d.pos + dy / (crate.S * 0.33));
+  d.hist.push([performance.now(), e.clientY]); if (d.hist.length > 6) d.hist.shift();
+  crateDraw();
+});
+stage.addEventListener('pointerup', e => {
+  const d = crate.drag; if (!d) return;
+  crate.drag = null;
+  const now = performance.now();
+  if (d.moved < 8 && now - d.t < 400) { const r = crate.list[Math.round(crate.pos)]; if (r) openDetail(r.id); crateGo(Math.round(crate.pos)); return; }
+  const [t0, y0] = d.hist[0];
+  const v = (e.clientY - y0) / Math.max(16, now - t0) / (crate.S * 0.33);   // skivor per ms
+  crateGo(Math.round(crate.pos + v * 200));
+  if (!LS.get('sh.flipped', false)) { LS.set('sh.flipped', true); crate.shown = -1; }
+});
+stage.addEventListener('pointercancel', () => { crate.drag = null; crateGo(Math.round(crate.pos)); });
+let wheelT;
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  crate.target = null;
+  crate.pos = clampPos(crate.pos + e.deltaY / 160); crateDraw();
+  clearTimeout(wheelT); wheelT = setTimeout(() => crateGo(Math.round(crate.pos)), 120);
+}, { passive: false });
+addEventListener('keydown', e => {
+  if (view.mode !== 'crate' || document.querySelector('.sheet.open,.view.open') || e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') crateGo(Math.round(crate.pos) + 1);
+  if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') crateGo(Math.round(crate.pos) - 1);
+  if (e.key === 'Enter') { const r = crate.list[Math.round(crate.pos)]; if (r) openDetail(r.id); }
+});
+// Bokstavslisten: tryck eller dra längs listen för att hoppa.
+const rail = $('#rail');
+function railAt(e) {
+  const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('#rail b'); if (!el) return;
+  crateGo(+el.dataset.i);
+  const b = $('#bubble'); b.textContent = el.dataset.l; b.classList.add('show');
+}
+rail.addEventListener('pointerdown', e => { e.stopPropagation(); rail.setPointerCapture(e.pointerId); rail.dataset.on = 1; railAt(e); });
+rail.addEventListener('pointermove', e => { if (rail.dataset.on) railAt(e); });
+const railEnd = () => { delete rail.dataset.on; setTimeout(() => $('#bubble').classList.remove('show'), 350); };
+rail.addEventListener('pointerup', railEnd); rail.addEventListener('pointercancel', railEnd);
+$('#nInfo').onclick = () => { const r = crate.list[Math.round(crate.pos)]; if (r) openDetail(r.id); };
+$('#nPlay').onclick = () => { const r = crate.list[Math.round(crate.pos)]; if (r) playAlbum(r); };
+addEventListener('resize', () => crateLayout());
 
 /* ---------------- Discogs ---------------- */
 async function dg(path, params = {}) {
@@ -259,13 +467,70 @@ function nativeScan(b64) {
 }
 // Android-appen läser streckkod och text med Googles ML Kit, i telefonen och utan kostnad.
 async function scanPhoto(file) {
-  if (window.App && App.scan) return nativeScan(await toJpegBase64(file));
-  if ('BarcodeDetector' in window) {   // vanlig webbläsare: bara streckkod
-    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    const codes = await new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }).detect(bmp);
-    return { barcodes: codes.map(c => c.rawValue), lines: [] };
+  try {
+    if (window.App && App.scan) return await nativeScan(await toJpegBase64(file));
+    if ('BarcodeDetector' in window) {   // vanlig webbläsare: bara streckkod
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const codes = await new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }).detect(bmp);
+      return { barcodes: codes.map(c => c.rawValue), lines: [] };
+    }
+  } catch (e) { console.log('scan', e); }
+  return { barcodes: [], lines: [] };
+}
+
+/* ---------------- Gemini (gratisnivån) för omslag utan streckkod ---------------- */
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+const today = () => new Date().toLocaleDateString('sv-SE');
+function gemCount(add = 0) {
+  let c = LS.get('sh.gem', { day: today(), n: 0 });
+  if (c.day !== today()) c = { day: today(), n: 0 };
+  c.n += add; LS.set('sh.gem', c); return c.n;
+}
+async function geminiIdentify(b64) {
+  const prompt = `Bilden visar en skiva (LP, singel eller CD): framsida, baksida eller etikett.
+Vilken skiva är det? Svara ENBART med JSON, null för det du inte vet:
+{"artist": "...", "title": "...", "year": 1977, "catno": "...", "confidence": "high|medium|low"}
+Om du känner igen omslaget utan text, fyll i artist och title ändå.`;
+  const models = cfg.geminiModel ? [cfg.geminiModel, ...GEMINI_MODELS.filter(m => m !== cfg.geminiModel)] : GEMINI_MODELS;
+  let last = '';
+  for (const model of models) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': cfg.gemini },
+      body: JSON.stringify({
+        contents: [{ parts: [{ inline_data: { mime_type: 'image/jpeg', data: b64 } }, { text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0 }
+      })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) {
+      gemCount(1);
+      const text = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Kunde inte tolka svaret från Gemini.');
+      return { ...JSON.parse(m[0]), model };
+    }
+    if (r.status === 400 && /API key/i.test(j.error?.message || '')) throw new Error('Gemini godkände inte nyckeln. Kolla den under ⚙︎.');
+    // 429 = dagens gratisanrop slut för modellen, 404 = modellen finns inte. Prova nästa (egen kvot per modell).
+    last = j.error?.message || String(r.status);
+    if (r.status !== 429 && r.status !== 404 && r.status !== 403) break;
   }
-  throw new Error('Att läsa av foton fungerar i Android-appen. Här kan du söka med text i stället.');
+  throw new Error(/quota|429|exhausted/i.test(last) ? 'Dagens gratisanrop till Gemini är slut.' : 'Gemini: ' + last);
+}
+async function findFromInfo(info) {
+  const tries = [];
+  if (info.catno) tries.push({ catno: info.catno, artist: info.artist, type: 'release' });
+  if (info.artist && info.title) {
+    tries.push({ artist: info.artist, release_title: info.title, type: 'master' });
+    tries.push({ artist: info.artist, release_title: info.title, type: 'release' });
+  }
+  const q = [info.artist, info.title].filter(Boolean).join(' ');
+  if (q) tries.push({ q, type: 'master' }, { q, type: 'release' });
+  for (const p of tries) {
+    const res = await dgSearch(p);
+    if (res.length) return res.map(toCand);
+  }
+  return [];
 }
 const byHeight = lines => [...lines].sort((a, b) => b.h - a.h);
 const CATNO = /\b([A-Z]{1,6}[ .-]?\d{3,7})\b/;
@@ -312,7 +577,7 @@ let lastCands = [];
 function openAdd(def = 'have') {
   addDefault = def;
   $('#addView').classList.add('open');
-  $('#addStatus').innerHTML = '<p class="note">Bäst träff: fota baksidan så att streckkoden syns. Annars framsidan eller etiketten med tydlig text.</p>';
+  $('#addStatus').innerHTML = `<p class="note">Bäst träff: fota baksidan så att streckkoden syns. Saknas streckkod frågar appen Gemini om omslaget${cfg.gemini ? ` (${gemCount()} anrop idag)` : ''}.</p>`;
   $('#addResults').innerHTML = '';
   $('#aq').value = '';
 }
@@ -326,18 +591,42 @@ function fail(e) { $('#addStatus').innerHTML = `<div class="msg">${esc(e.message
 async function onPhoto(file) {
   if (!file) return;
   $('#addResults').innerHTML = '';
+  const readBox = html => `<div class="read">${html}<br><span class="m">Blev det fel? Rätta texten i sökfältet och tryck sök.</span></div>`;
   try {
-    busy('Läser av bilden…');
+    busy('Letar efter streckkod…');
     const scan = await scanPhoto(file);
     const lines = byHeight((scan.lines || []).filter(l => norm(l.t).length > 1));
-    if (!scan.barcodes?.length && !lines.length)
-      throw new Error('Hittade ingen streckkod eller text. Prova att fota baksidan med streckkoden, eller sök med text.');
-    const shown = scan.barcodes?.length ? 'streckkod ' + scan.barcodes[0] : lines.slice(0, 3).map(l => l.t).join(' · ');
     if (lines.length) $('#aq').value = lines.slice(0, 2).map(l => l.t).join(' ');
-    busy('Söker i Discogs…');
-    const cands = await findFromScan(scan);
-    $('#addStatus').innerHTML = `<div class="read">Läste: <b>${esc(shown)}</b><br><span class="m">Blev det fel? Rätta texten i sökfältet och tryck sök.</span></div>`;
-    showCands(cands);
+
+    // 1. Streckkod: gratis och nästan alltid exakt rätt.
+    if (scan.barcodes?.length) {
+      busy('Streckkod hittad. Söker i Discogs…');
+      const c = await findFromScan({ barcodes: scan.barcodes, lines: scan.lines });
+      if (c.length) { $('#addStatus').innerHTML = readBox(`Streckkod <b>${esc(scan.barcodes[0])}</b>`); return showCands(c); }
+    }
+    // 2. Gemini känner igen omslaget.
+    let gemErr = '';
+    if (cfg.gemini) {
+      try {
+        busy('Frågar Gemini om omslaget…');
+        const info = await geminiIdentify(await toJpegBase64(file, 1024));
+        const what = [info.artist, info.title].filter(Boolean).join(' – ');
+        if (what) {
+          $('#aq').value = [info.artist, info.title].filter(Boolean).join(' ');
+          busy(`Gemini tror "${what}". Söker i Discogs…`);
+          const c = await findFromInfo(info);
+          $('#addStatus').innerHTML = readBox(`Gemini: <b>${esc(what)}</b>${info.year ? ' (' + esc(info.year) + ')' : ''}${
+            info.confidence === 'low' ? ' <span class="m">· osäker</span>' : ''}<br><span class="m">${gemCount()} Gemini-anrop idag</span>`);
+          if (c.length) return showCands(c);
+        }
+      } catch (e) { gemErr = e.message; }
+    }
+    // 3. Texten på omslaget.
+    if (!lines.length) throw new Error((gemErr ? gemErr + ' ' : '') + 'Hittade ingen streckkod eller text. Prova att fota baksidan med streckkoden, eller sök med text.');
+    busy('Söker på texten i Discogs…');
+    const c = await findFromScan({ barcodes: [], lines: scan.lines });
+    $('#addStatus').innerHTML = readBox(`${gemErr ? esc(gemErr) + '<br>' : ''}Läste texten: <b>${esc(lines.slice(0, 3).map(l => l.t).join(' · '))}</b>`);
+    showCands(c);
   } catch (e) { fail(e); }
 }
 $('#camInput').onchange = e => { onPhoto(e.target.files[0]); e.target.value = ''; };
@@ -373,6 +662,7 @@ $('#addResults').addEventListener('click', e => {
   recs.push(rec); saveRecs();
   view.tab = rec.status; render();
   closeAdd();
+  crateFocus(rec.id);
   toast(rec.status === 'have' ? `${rec.title} ligger nu i hyllan` : `${rec.title} ligger på önskelistan`);
   matchSpotify(rec);
 });
@@ -553,6 +843,8 @@ function drawSpBox() {
 }
 function openSettings() {
   $('#discogsToken').value = cfg.discogs || '';
+  $('#geminiKey').value = cfg.gemini || '';
+  $('#gemToday').textContent = `Gemini-anrop idag: ${gemCount()}.`;
   $('#spClient').value = cfg.spClient || '';
   $('#redirUri').textContent = REDIRECT;
   $('#backup').value = '';
@@ -561,6 +853,7 @@ function openSettings() {
 }
 function closeSettings() {
   cfg.discogs = $('#discogsToken').value.trim();
+  cfg.gemini = $('#geminiKey').value.trim();
   cfg.spClient = $('#spClient').value.trim();
   saveCfg(); render();
   $('#settings').classList.remove('open');

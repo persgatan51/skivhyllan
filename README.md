@@ -2,7 +2,8 @@
 
 Din skivsamling i telefonen. Fota en skiva så letar appen upp vilken det är, eller sök fram skivor du vill ha. Spela albumet, eller en enskild låt, i Spotify.
 
-- **Läsa av foton:** Googles ML Kit läser streckkod och text direkt i telefonen. Det är gratis och kräver ingen nyckel. Appen söker sedan i Discogs på streckkod, katalognummer och den största texten (oftast artist och titel).
+- **Läsa av foton:** först letar appen efter en streckkod med Googles ML Kit, direkt i telefonen och gratis. Saknas streckkod frågar den Gemini (gratisnivån) vilket omslag det är. Om Gemini inte har några anrop kvar för dagen söker appen på texten på omslaget.
+- **Bläddra:** som i en skivback. Dra nedåt för att fälla fram nästa skiva, eller hoppa med bokstavslisten. Sorteringen är artist (utan "The") och sedan årtal. ▦ byter till rutnät.
 - **Skivdata:** Discogs API ger omslag, utgåvor och låtlistor.
 - **Spela:** Spotify. Utan inloggning öppnar Spela en sökning i Spotify-appen. Med inloggning (kräver Premium och en egen Spotify-app) går den direkt till rätt album och låt.
 
@@ -11,6 +12,7 @@ Samlingen sparas på telefonen. Under ⚙︎ finns en backup som du kan kopiera 
 ## Kom igång
 
 1. Öppna appen, tryck på ⚙︎ och klistra in:
+   - **Gemini API-nyckel** (gratis): [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
    - **Discogs personal token:** [discogs.com/settings/developers](https://www.discogs.com/settings/developers)
    - *(valfritt)* **Spotify Client ID:** skapa en app på [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), kryssa i Web API och lägg in Redirect URI `https://persgatan51.github.io/skivhyllan/`
 2. Tryck på **+** och fota en skiva. Bäst träff får du om du fotar baksidan med streckkoden.
