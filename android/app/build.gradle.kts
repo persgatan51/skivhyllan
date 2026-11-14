@@ -10,6 +10,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
+        // Behåll det gamla id:t (från namnet Skivhyllan) så att nya versioner installeras ovanpå och samlingen finns kvar.
         applicationId = "se.persgatan.skivhyllan"
         minSdk = 26
         targetSdk = 35

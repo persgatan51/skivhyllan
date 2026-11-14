@@ -34,15 +34,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk skivhyllan.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk skivbacken.apk
           if gh release view app >/dev/null 2>&1; then
-            gh release upload app skivhyllan.apk --clobber
+            gh release upload app skivbacken.apk --clobber
           else
-            gh release create app skivhyllan.apk --title "Android-app" \
-              --notes "Senaste versionen av appen. Ladda ner skivhyllan.apk på telefonen och installera."
+            gh release create app skivbacken.apk --title "Android-app" \
+              --notes "Senaste versionen av appen. Ladda ner skivbacken.apk på telefonen och installera."
           fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: skivhyllan-apk
-          path: skivhyllan.apk
+          name: skivbacken-apk
+          path: skivbacken.apk

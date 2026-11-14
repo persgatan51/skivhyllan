@@ -37,7 +37,7 @@ import java.util.concurrent.Executors
 class MainActivity : Activity() {
 
     companion object {
-        const val START_URL = "https://persgatan51.github.io/skivhyllan/"
+        const val START_URL = "https://persgatan51.github.io/skivbacken/"
         const val HOST = "persgatan51.github.io"
         const val REQ_FILE = 42
         // Sidor som ska visas inne i appen (Spotify-inloggningen). Allt annat öppnas utanför.

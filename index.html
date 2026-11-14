@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
-<title>Skivhyllan</title>
+<title>Skivbacken</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
@@ -118,7 +118,7 @@
 <body>
 <header>
   <div class="row">
-    <h1>Skivhyllan</h1>
+    <h1>Skivbacken</h1>
     <button id="btnSearch" class="ico" aria-label="Sök">🔍</button>
     <button id="btnView" class="ico" aria-label="Byt vy">▦</button>
     <button id="btnSettings" class="ico" aria-label="Inställningar">⚙︎</button>
@@ -923,7 +923,7 @@ $('#btnSettings').onclick = openSettings;
 $('#closeSettings').onclick = closeSettings;
 $('#settings').addEventListener('click', e => { if (e.target.id === 'settings') closeSettings(); });
 $('#btnExport').onclick = () => {
-  $('#backup').value = JSON.stringify({ app: 'skivhyllan', v: 1, recs: recs.map(({ spTracks, ...r }) => r) });
+  $('#backup').value = JSON.stringify({ app: 'skivbacken', v: 1, recs: recs.map(({ spTracks, ...r }) => r) });
   $('#backup').select(); toast('Markera allt och kopiera texten');
 };
 $('#btnImport').onclick = e => {
