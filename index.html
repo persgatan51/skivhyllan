@@ -82,6 +82,8 @@
        transform-origin:50% 100%;will-change:transform;border-radius:3px;background:#22262e;
        box-shadow:0 -1px 0 rgba(255,255,255,.08) inset,0 14px 34px rgba(0,0,0,.65)}
   .rec img{width:100%;height:100%;object-fit:cover;display:block;border-radius:3px;pointer-events:none;-webkit-user-drag:none}
+  .rec.loading img{opacity:0}
+  .rec img{transition:opacity .2s}
   .rec::after{content:"";position:absolute;inset:0;border-radius:3px;background:#05060a;opacity:var(--sh,0);pointer-events:none}
   .rec .sleeve{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:9%;
        background:linear-gradient(135deg,#2b303a,#1b1e25);border-radius:3px}
@@ -113,6 +115,20 @@
   .nc{font-size:12px;color:var(--mut);margin-top:3px}
   .wantTag{position:absolute;top:8px;right:8px;background:var(--acc);color:#111;font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;z-index:1}
   .nplay{width:52px;height:52px;border-radius:50%;background:var(--sp);border-color:var(--sp);color:#04140a;font-size:20px;padding:0;flex:none}
+  .chk{display:flex;gap:10px;align-items:center;margin:12px 0 4px;font-size:14px}
+  .chk input{width:20px;height:20px}
+  details.more{margin-top:12px}
+  details.more summary{color:var(--mut);font-size:13px;cursor:pointer}
+  .batch{width:100%;padding:13px;border-radius:12px;font-weight:600;margin:2px 0 8px}
+  .qhead{margin:16px 0 4px;font-weight:700}
+  .qitem{border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0}
+  .qitem .cand:last-of-type{border-bottom:0}
+  .scanbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:8px 0;text-align:center}
+  .scanbox .big{font-size:17px;font-weight:700;margin:6px 0}
+  .log h3{margin:18px 0 2px;font-size:16px}
+  .log .m{margin-bottom:4px}
+  .log ul{margin:6px 0 0;padding-left:20px}
+  .log li{margin:3px 0}
 </style>
 </head>
 <body>
@@ -161,9 +177,13 @@
     <label class="big">📷 Fota skivan<input id="camInput" type="file" accept="image/*" capture="environment"></label>
     <label>🖼 Välj bild<input id="picInput" type="file" accept="image/*"></label>
   </div>
+  <button id="btnBatch" class="batch">⚡ Snabbskanna många skivor (streckkoder)</button>
   <div id="addStatus"></div>
   <div id="addResults"></div>
+  <div id="queueBox"></div>
 </div>
+
+<div class="sheet" id="logSheet" style="z-index:25"><div class="panel"><div class="pad" id="logBody"></div></div></div>
 
 <div class="sheet" id="detail"><div class="panel" id="detailBody"></div></div>
 
@@ -184,13 +204,23 @@
     Kräver Spotify Premium. Utan inloggning öppnar Spela-knappen en sökning i Spotify i stället.</p>
   <div class="actions" id="spBox"></div>
 
-  <label class="f">Säkerhetskopia</label>
-  <p class="note">Samlingen sparas i appen på den här telefonen. Kopiera texten nedan och spara den någonstans för att ha en backup, eller klistra in en backup och tryck Importera.</p>
-  <textarea id="backup" spellcheck="false"></textarea>
-  <div class="split" style="margin-top:8px">
-    <button id="btnExport">Visa backup</button>
-    <button id="btnImport">Importera</button>
+  <label class="f">Backup till Google Drive</label>
+  <p class="note" id="bkInfo"></p>
+  <div class="actions" style="margin-top:6px">
+    <button id="bkSave" class="play" style="background:var(--acc);border-color:var(--acc);color:#111">Spara backup nu</button>
+    <div class="split"><button id="bkPick">Välj ny plats</button><button id="bkLoad">Hämta backup</button></div>
   </div>
+  <label class="chk"><input type="checkbox" id="bkAuto"> Spara backup automatiskt när samlingen ändras</label>
+  <details class="more"><summary>Backup som text (reserv)</summary>
+    <textarea id="backup" spellcheck="false"></textarea>
+    <div class="split" style="margin-top:8px">
+      <button id="btnExport">Visa backup</button>
+      <button id="btnImport">Importera</button>
+    </div>
+  </details>
+
+  <div class="actions"><button id="btnLog">Ändringslogg</button></div>
+  <p class="note" id="verInfo"></p>
 
   <div class="actions"><button id="closeSettings" class="play" style="background:var(--acc);border-color:var(--acc);color:#111">Spara och stäng</button></div>
 </div></div></div>
@@ -212,7 +242,7 @@ let recs = LS.get('sh.recs', []);          // skivorna
 let view = { tab: 'have', q: '' };
 let addDefault = 'have';
 
-const saveRecs = () => LS.set('sh.recs', recs);
+const saveRecs = () => { LS.set('sh.recs', recs); if (typeof autoBackup === 'function') autoBackup(); };
 const saveCfg = () => LS.set('sh.cfg', cfg);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -332,41 +362,74 @@ function crateLayout() {
   box.style.setProperty('--fh', Math.round(S * 0.36) + 'px');
   crateDraw(true);
 }
+// Omslagen förladdas och elementen återanvänds (nyckel = skivans id), så att inget laddas om när man bläddrar.
+const imgCache = new Map();
+function preload(url) {
+  if (!url || imgCache.has(url)) return;
+  const im = new Image();
+  im.src = url;
+  imgCache.set(url, im.decode().catch(() => {}));
+  if (imgCache.size > 400) imgCache.delete(imgCache.keys().next().value);
+}
 function crateSet(list, emptyMsg) {
   const curId = crate.list[Math.round(crate.pos)]?.id;
+  const sig = view.tab + '|' + list.map(r => r.id + (r.cover || '')).join(',');
+  const same = sig === crate.sig;
+  if (crate.tab !== view.tab) { crate.els.forEach(el => el.remove()); crate.els.clear(); crate.tab = view.tab; }
+  crate.sig = sig;
   crate.list = list;
-  crate.els.forEach(el => el.remove()); crate.els.clear();
   $('#crateEmpty').innerHTML = emptyMsg || '';
-  const keep = curId ? list.findIndex(r => r.id === curId) : -1;
-  crate.pos = keep >= 0 ? keep : clampPos(Math.round(crate.pos)) || 0;
-  crate.target = null;
-  // Bokstavslisten
-  const seen = new Set();
-  $('#rail').innerHTML = list.length > 6 ? list.map((r, i) => {
-    const L = letterOf(r); if (seen.has(L)) return ''; seen.add(L);
-    return `<b data-i="${i}" data-l="${esc(L)}">${esc(L)}</b>`;
-  }).join('') : '';
+  if (!same) {
+    const ids = new Set(list.map(r => r.id));
+    crate.els.forEach((el, id) => { if (!ids.has(id)) { el.remove(); crate.els.delete(id); } });
+    const keep = curId ? list.findIndex(r => r.id === curId) : -1;
+    crate.pos = keep >= 0 ? keep : clampPos(Math.round(crate.pos)) || 0;
+    crate.target = null;
+    const seen = new Set();
+    $('#rail').innerHTML = list.length > 6 ? list.map((r, i) => {
+      const L = letterOf(r); if (seen.has(L)) return ''; seen.add(L);
+      return `<b data-i="${i}" data-l="${esc(L)}">${esc(L)}</b>`;
+    }).join('') : '';
+  }
   crate.shown = -1;
   crateLayout();
 }
 function crateEl(i) {
-  let el = crate.els.get(i);
-  if (el) return el;
   const r = crate.list[i];
+  let el = crate.els.get(r.id);
+  if (el) return el;
   el = document.createElement('div');
   el.className = 'rec';
-  el.innerHTML = r.cover ? `<img src="${esc(r.cover)}" alt="" decoding="async">`
-    : `<div class="sleeve"><b>${esc(r.title)}</b><span>${esc(r.artist)}</span></div>`
+  if (r.cover) {
+    const img = new Image();
+    img.alt = '';
+    img.src = r.cover;
+    el.classList.add('loading');
+    img.decode().catch(() => {}).finally(() => el.classList.remove('loading'));
+    el.appendChild(img);
+  } else {
+    el.innerHTML = `<div class="sleeve"><b>${esc(r.title)}</b><span>${esc(r.artist)}</span></div>`;
+  }
   if (r.status === 'want' && view.tab === 'all') el.insertAdjacentHTML('beforeend', '<span class="wantTag">Vill ha</span>');
   $('#stage').appendChild(el);
-  crate.els.set(i, el);
+  crate.els.set(r.id, el);
   return el;
 }
 function crateDraw(force) {
   const { list, S } = crate, n = list.length, pos = crate.pos;
-  if (!n) { updateNow(); return; }
-  const lo = Math.max(0, Math.floor(pos) - 2), hi = Math.min(n - 1, Math.floor(pos) + 8);
-  crate.els.forEach((el, i) => { if (i < lo || i > hi) { el.remove(); crate.els.delete(i); } });
+  if (!n) { crate.els.forEach(el => el.remove()); crate.els.clear(); updateNow(); return; }
+  const f = Math.floor(pos);
+  // Skivor långt bort göms men behålls; bara de utanför ±40 tas bort.
+  const lo = Math.max(0, f - 4), hi = Math.min(n - 1, f + 14);
+  const keepLo = f - 40, keepHi = f + 60;
+  const visible = new Set();
+  for (let i = lo; i <= hi; i++) visible.add(list[i].id);
+  list.forEach((r, i) => {
+    const el = crate.els.get(r.id); if (!el) return;
+    if (i < keepLo || i > keepHi) { el.remove(); crate.els.delete(r.id); }
+    else if (!visible.has(r.id)) el.style.visibility = 'hidden';
+  });
+  for (let i = Math.min(n - 1, f + 15); i <= Math.min(n - 1, f + 30); i++) preload(list[i].cover);
   for (let i = lo; i <= hi; i++) {
     const d = i - pos, el = crateEl(i);
     let rx, y, z, sh, op = 1;
@@ -377,6 +440,7 @@ function crateDraw(force) {
     } else {                            // ligger framfälld mot framkanten
       const t = Math.min(1, -d - 1); rx = -80 - t * 4; y = 0.02 * S; z = 0.07 * S + t * 0.02 * S; sh = 0.35 + t * 0.2; op = 1 - t;
     }
+    el.style.visibility = op > 0.001 ? 'visible' : 'hidden';
     el.style.transform = `translate3d(0,${y.toFixed(1)}px,${z.toFixed(1)}px) rotateX(${rx.toFixed(2)}deg)`;
     el.style.zIndex = String(Math.round(2000 - d * 10));
     el.style.setProperty('--sh', sh.toFixed(3));
@@ -629,6 +693,8 @@ function openAdd(def = 'have') {
   $('#addStatus').innerHTML = `<p class="note">Bäst träff: fota baksidan så att streckkoden syns. Saknas streckkod frågar appen Gemini om omslaget${cfg.gemini ? ` (${gemCount()} anrop idag)` : ''}.</p>`;
   $('#addResults').innerHTML = '';
   $('#aq').value = '';
+  renderQueue();
+  $('#btnBatch').hidden = !(window.App && App.scan);
 }
 const closeAdd = () => $('#addView').classList.remove('open');
 $('#btnAdd').onclick = () => openAdd(view.tab === 'want' ? 'want' : 'have');
@@ -909,6 +975,8 @@ function openSettings() {
   $('#spClient').value = cfg.spClient || '';
   $('#redirUri').textContent = REDIRECT;
   $('#backup').value = '';
+  bkInfo();
+  $('#verInfo').textContent = `Webbversion ${WEB_VERSION}` + (nativeVer() ? ` · Android-skal v${nativeVer()}` : '');
   drawSpBox();
   $('#settings').classList.add('open');
 }
@@ -923,20 +991,201 @@ $('#btnSettings').onclick = openSettings;
 $('#closeSettings').onclick = closeSettings;
 $('#settings').addEventListener('click', e => { if (e.target.id === 'settings') closeSettings(); });
 $('#btnExport').onclick = () => {
-  $('#backup').value = JSON.stringify({ app: 'skivbacken', v: 1, recs: recs.map(({ spTracks, ...r }) => r) });
+  $('#backup').value = backupJson();
   $('#backup').select(); toast('Markera allt och kopiera texten');
 };
-$('#btnImport').onclick = e => {
-  let data; try { data = JSON.parse($('#backup').value); } catch { toast('Det där ser inte ut som en backup.'); return; }
+$('#btnImport').onclick = () => {
+  try { const n = mergeBackup(JSON.parse($('#backup').value)); toast(`${n} skivor importerade`); }
+  catch (e) { toast(e instanceof SyntaxError ? 'Det där ser inte ut som en backup.' : e.message); }
+};
+
+/* ---------------- Ändringslogg (nyast överst) ---------------- */
+const WEB_VERSION = '2026-11-14';
+const CHANGELOG = [
+  { d: '2026-11-14', t: 'Backup, snabbskanning och mjukare bläddring', i: [
+    'Backup till Google Drive: spara skivor och inställningar som en fil, och hämta den på en ny telefon.',
+    'Automatisk backup när samlingen ändras (valfritt).',
+    'Snabbskanna många skivor: skanna streckkod efter streckkod, säkra träffar läggs in direkt.',
+    'Kön "Att granska" för skivor där appen inte var säker.',
+    'Omslagen blinkar inte längre när du bläddrar.',
+    'Den här ändringsloggen.' ] },
+  { d: '2026-11-14', t: 'Nytt namn: Skivbacken', i: ['Appen och repot heter nu Skivbacken.'] },
+  { d: '2026-11-13', t: 'Efternamn, titel överst och fliken Alla', i: [
+    'Soloartister sorteras på efternamn (Dylan, Bob). Går att ändra per artist.',
+    'Titel och artist visas ovanför skivbacken.',
+    'Ny flik Alla visar både Har och Vill ha.' ] },
+  { d: '2026-11-13', t: 'Skivbacken', i: [
+    'Bläddra som i en skivback med bokstavslist A–Ö.',
+    'Sortering på artist och sedan årtal.',
+    'Gemini känner igen omslag utan streckkod (gratisnivån).' ] },
+  { d: '2026-11-13', t: 'Gratis igenkänning', i: ['Streckkod och text läses i telefonen med Googles ML Kit i stället för Claude.'] },
+  { d: '2026-11-13', t: 'Första versionen', i: ['Fota eller sök fram skivor, samling och önskelista, spela i Spotify.'] }
+];
+function openLog() {
+  $('#logBody').innerHTML = `<h2>Ändringslogg</h2><div class="log">${CHANGELOG.map(c => `
+    <h3>${esc(c.t)}</h3><div class="m">${esc(c.d)}</div><ul>${c.i.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`).join('')}</div>
+    <div class="actions"><button id="closeLog">Stäng</button></div>`;
+  $('#closeLog').onclick = closeLog;
+  $('#logSheet').classList.add('open');
+}
+const closeLog = () => $('#logSheet').classList.remove('open');
+$('#logSheet').addEventListener('click', e => { if (e.target.id === 'logSheet') closeLog(); });
+
+/* ---------------- Anrop till Android-skalet ---------------- */
+const nativeVer = () => { try { return +(window.App?.version?.() || 0); } catch { return 0; } };
+function native(call) {
+  return new Promise((res, rej) => { const id = 'n' + (++cbSeq); cbs[id] = { res, rej }; call(id); });
+}
+
+/* ---------------- Backup till Google Drive ---------------- */
+let scanQueue = LS.get('sh.queue', []);
+const saveQueue = () => { LS.set('sh.queue', scanQueue); autoBackup(); };
+function backupJson() {
+  const { ...c } = cfg;
+  return JSON.stringify({ app: 'skivbacken', v: 2, saved: new Date().toISOString(),
+    recs: recs.map(({ spTracks, ...r }) => r), cfg: c, artistInfo, queue: scanQueue });
+}
+function mergeBackup(data) {
   const list = Array.isArray(data) ? data : data.recs;
-  if (!Array.isArray(list)) { toast('Hittade inga skivor i texten.'); return; }
+  if (!Array.isArray(list)) throw new Error('Hittade inga skivor i backupen.');
   let n = 0;
   for (const r of list) if (r && r.title && !recs.some(x => x.id === r.id)) { recs.push(r); n++; }
-  saveRecs(); render(); toast(`${n} skivor importerade`);
-};
+  if (data.cfg) for (const [k, v] of Object.entries(data.cfg)) if (v && !cfg[k]) cfg[k] = v;
+  if (data.artistInfo) artistInfo = { ...data.artistInfo, ...artistInfo };
+  if (Array.isArray(data.queue)) for (const q of data.queue) if (!scanQueue.some(x => x.id === q.id)) scanQueue.push(q);
+  LS.set('sh.artists', artistInfo); LS.set('sh.queue', scanQueue);
+  saveCfg(); saveRecs(); render();
+  return n;
+}
+function bkInfo() {
+  const b = LS.get('sh.bk', null);
+  const name = nativeVer() >= 3 ? App.backupName() : '';
+  $('#bkInfo').innerHTML = nativeVer() < 3
+    ? 'Finns i Android-appen. Installera senaste versionen från GitHub (Releases).'
+    : (b ? `Senaste backup: ${esc(new Date(b.at).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }))}${name ? ' i ' + esc(name) : ''}.` : 'Ingen backup sparad än.')
+      + ' Välj Google Drive i filväljaren första gången. Filen innehåller skivorna och inställningarna, även dina nycklar.';
+  $('#bkAuto').checked = !!cfg.bkAuto;
+}
+async function driveSave(mode = 'save') {
+  if (nativeVer() < 3) { if (mode !== 'auto') toast('Installera senaste appversionen för att spara till Drive.'); return; }
+  try {
+    const name = await native(id => App.saveBackup(backupJson(), id, mode));
+    LS.set('sh.bk', { at: Date.now(), name });
+    if (mode !== 'auto') toast(`Backup sparad i ${name}`);
+    if ($('#settings').classList.contains('open')) bkInfo();
+  } catch (e) {
+    if (mode !== 'auto' && e.message !== 'cancel') toast(e.message, 4000);
+  }
+}
+async function driveLoad() {
+  if (nativeVer() < 3) { toast('Installera senaste appversionen för att hämta från Drive.'); return; }
+  try {
+    const text = await native(id => App.loadBackup(id));
+    const n = mergeBackup(JSON.parse(text));
+    toast(`${n} skivor hämtade från backupen`);
+    openSettings();
+  } catch (e) {
+    if (e.message !== 'cancel') toast(e instanceof SyntaxError ? 'Filen ser inte ut som en backup från Skivbacken.' : e.message, 4000);
+  }
+}
+let autoT;
+function autoBackup() {
+  if (!cfg.bkAuto || nativeVer() < 3) return;
+  clearTimeout(autoT); autoT = setTimeout(() => driveSave('auto'), 15000);
+}
+$('#bkSave').onclick = () => driveSave('save');
+$('#bkPick').onclick = () => driveSave('pick');
+$('#bkLoad').onclick = driveLoad;
+$('#bkAuto').onchange = e => { cfg.bkAuto = e.target.checked; saveCfg(); if (cfg.bkAuto) driveSave('save'); };
+$('#btnLog').onclick = openLog;
+
+/* ---------------- Snabbskanning av många skivor ---------------- */
+function addRecFromCand(c, status) {
+  const rec = { id: uid(), status, added: Date.now(), ...c };
+  delete rec.score;
+  recs.push(rec); saveRecs();
+  matchSpotify(rec);
+  return rec;
+}
+const findExisting = c => recs.find(r => r.dId === c.dId || (c.masterId && r.masterId === c.masterId));
+let batching = false;
+async function batchScan() {
+  if (nativeVer() < 3) { toast('Installera senaste appversionen från GitHub för snabbskanning.', 4000); return; }
+  if (!cfg.discogs) { toast('Lägg in din Discogs-token under ⚙︎ först.'); return; }
+  if (batching) return;
+  batching = true;
+  const st = { scanned: 0, added: 0, dup: 0, review: 0 };
+  const box = (big, small = '') => $('#addStatus').innerHTML = `<div class="scanbox"><div class="m">Snabbskanning · ${st.scanned} skannade · ${st.added} tillagda${st.dup ? ` · ${st.dup} fanns redan` : ''}${st.review ? ` · ${st.review} att granska` : ''}</div><div class="big">${big}</div><div class="m">${small}</div></div>`;
+  $('#addResults').innerHTML = '';
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  try {
+    while (true) {
+      let code;
+      try { code = await native(id => App.scanBarcode(id)); }
+      catch (e) {
+        if (e.message !== 'cancel') toast('Skannern: ' + e.message.replace(/^fail:/, ''), 4000);
+        break;
+      }
+      code = String(code).replace(/\D/g, '');
+      if (!code) continue;
+      st.scanned++;
+      box('<span class="spin"></span>Söker…', 'Streckkod ' + esc(code));
+      let cands = [];
+      try { cands = (await dgSearch({ barcode: code, type: 'release' })).map(toCand); }
+      catch (e) { box(esc(e.message)); await sleep(2500); if (/för många/.test(e.message)) await sleep(30000); }
+      const masters = new Set(cands.map(c => c.masterId || 'r' + c.dId));
+      const ex = cands[0] && findExisting(cands[0]);
+      if (ex) { st.dup++; box('Fanns redan: ' + esc(ex.title), esc(ex.artist)); }
+      else if (cands.length && masters.size === 1) {
+        const rec = addRecFromCand(cands[0], 'have');
+        st.added++; box('✓ ' + esc(rec.title), esc(rec.artist) + (rec.year ? ' · ' + rec.year : ''));
+      } else {
+        scanQueue.push({ id: uid(), code, cands: cands.slice(0, 5), at: Date.now() }); saveQueue();
+        st.review++; box(cands.length ? 'Flera möjliga skivor' : 'Hittades inte i Discogs', 'Lagd i "Att granska"');
+      }
+      await sleep(1100);
+    }
+  } finally {
+    batching = false;
+    box(st.scanned ? 'Klart!' : 'Skanningen avbröts', st.scanned ? 'Tryck på knappen för att fortsätta skanna.' : '');
+    render(); renderQueue(); setTimeout(resolveArtists, 1500);
+  }
+}
+function renderQueue() {
+  const el = $('#queueBox');
+  if (!scanQueue.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="qhead">Att granska (${scanQueue.length})</div>` + scanQueue.map((q, qi) => `
+    <div class="qitem">
+      <div class="m">Streckkod ${esc(q.code)}${q.cands.length ? ' · vilken är det?' : ' · hittades inte i Discogs'}</div>
+      ${q.cands.map((c, ci) => `<div class="cand">
+        ${c.thumb ? `<img src="${esc(c.thumb)}" alt="">` : '<div class="ph">♪</div>'}
+        <div><div class="t">${esc(c.title)}</div><div class="m">${esc(c.artist)} · ${esc([c.year, c.format, c.country].filter(Boolean).join(' · '))}</div>
+          <div class="btns"><button data-q="${qi}" data-c="${ci}" data-s="have" class="on">Har den</button><button data-q="${qi}" data-c="${ci}" data-s="want">Vill ha</button></div></div></div>`).join('')}
+      <div class="btns" style="display:flex;gap:6px;margin-top:6px">
+        ${q.cands.length ? '' : `<button data-search="${qi}">Sök med text</button>`}
+        <button data-del="${qi}">Ta bort</button>
+      </div>
+    </div>`).join('');
+}
+$('#queueBox').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.del != null) { scanQueue.splice(+b.dataset.del, 1); saveQueue(); renderQueue(); return; }
+  if (b.dataset.search != null) {
+    scanQueue.splice(+b.dataset.search, 1); saveQueue(); renderQueue();
+    $('#aq').value = ''; $('#aq').focus(); toast('Skriv artist och album och tryck sök'); return;
+  }
+  const q = scanQueue[+b.dataset.q]; if (!q) return;
+  const c = q.cands[+b.dataset.c];
+  const rec = addRecFromCand(c, b.dataset.s);
+  scanQueue.splice(+b.dataset.q, 1); saveQueue(); renderQueue(); render();
+  toast(`${rec.title} är tillagd`);
+  setTimeout(resolveArtists, 1500);
+});
+$('#btnBatch').onclick = batchScan;
 
 /* ---------------- Bakåtknapp i appen ---------------- */
 window.__back = () => {
+  if ($('#logSheet').classList.contains('open')) { closeLog(); return true; }
   if ($('#settings').classList.contains('open')) { closeSettings(); return true; }
   if ($('#detail').classList.contains('open')) { closeDetail(); return true; }
   if ($('#addView').classList.contains('open')) { closeAdd(); return true; }

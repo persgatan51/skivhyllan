@@ -7,7 +7,9 @@ Din skivsamling i telefonen. Fota en skiva så letar appen upp vilken det är, e
 - **Skivdata:** Discogs API ger omslag, utgåvor och låtlistor.
 - **Spela:** Spotify. Utan inloggning öppnar Spela en sökning i Spotify-appen. Med inloggning (kräver Premium och en egen Spotify-app) går den direkt till rätt album och låt.
 
-Samlingen sparas på telefonen. Under ⚙︎ finns en backup som du kan kopiera och klistra in igen.
+Samlingen sparas på telefonen. Under ⚙︎ → Backup till Google Drive sparar du skivor och inställningar som en fil i Drive, och hämtar den igen på en ny telefon. Det går också att slå på automatisk backup.
+
+**Många skivor:** tryck på + och välj "Snabbskanna många skivor". Skanna streckkod efter streckkod. Säkra träffar läggs in direkt, och osäkra hamnar i "Att granska".
 
 ## Kom igång
 
