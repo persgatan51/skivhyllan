@@ -114,6 +114,10 @@
   .na{color:var(--fg);opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .nc{font-size:12px;color:var(--mut);margin-top:3px}
   .wantTag{position:absolute;top:8px;right:8px;background:var(--acc);color:#111;font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;z-index:1}
+  #worth{font-size:12px;color:var(--mut);margin-top:8px}
+  #worth b{color:var(--fg)}
+  .valbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px}
+  .valbig{font-size:22px;font-weight:700}
   .nplay{width:52px;height:52px;border-radius:50%;background:var(--sp);border-color:var(--sp);color:#04140a;font-size:20px;padding:0;flex:none}
   .chk{display:flex;gap:10px;align-items:center;margin:12px 0 4px;font-size:14px}
   .chk input{width:20px;height:20px}
@@ -144,6 +148,7 @@
     <button data-tab="want">Vill ha</button>
     <button data-tab="all">Alla</button>
   </div>
+  <div id="worth"></div>
   <div class="tools" id="searchRow" hidden>
     <input id="filter" type="search" placeholder="Sök artist eller album i hyllan" autocomplete="off">
   </div>
@@ -193,6 +198,10 @@
   <label class="f" for="geminiKey">Gemini API-nyckel (känner igen omslag utan streckkod)</label>
   <input id="geminiKey" autocomplete="off" spellcheck="false" placeholder="AIza…">
   <p class="note">Gratis på <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a>. Används bara när fotot saknar streckkod. <span id="gemToday"></span></p>
+
+  <label class="f" for="defCond">Skick för värdering (standard)</label>
+  <select id="defCond"></select>
+  <p class="note">Värdet är Discogs prisförslag för det skicket. Det kräver att du har fyllt i <a href="https://www.discogs.com/settings/seller">säljarinställningar på Discogs</a> (välj SEK). Du kan ändra skick per skiva.</p>
 
   <label class="f" for="discogsToken">Discogs personal token (skivdata)</label>
   <input id="discogsToken" autocomplete="off" spellcheck="false" placeholder="Klistra in token">
@@ -279,35 +288,159 @@ const sortRecs = list => list.sort((a, b) =>
   cmpSv(sortName(a), sortName(b)) || (a.year || 9999) - (b.year || 9999) || cmpSv(a.title, b.title));
 const letterOf = r => { const c = sortName(r).trim().charAt(0).toUpperCase(); return /\p{L}/u.test(c) ? c : '#'; };
 
-let resolving = false, rerenderT;
-async function resolveArtists() {
-  if (resolving || !cfg.discogs) return;
-  resolving = true;
-  const sleep = ms => new Promise(res => setTimeout(res, ms));
+/* ---------------- Bakgrundsjobb mot Discogs: artister (efternamn) och priser ---------------- */
+let bgRunning = false, rerenderT;
+const DAY = 864e5, PRICE_DAYS = 7;
+const sleepMs = ms => new Promise(res => setTimeout(res, ms));
+function scheduleRender() {
+  clearTimeout(rerenderT);
+  rerenderT = setTimeout(() => {
+    if (!crate.drag && crate.target == null) render();
+    if (cur && $('#detail').classList.contains('open')) drawValue(cur);
+  }, 1200);
+}
+const needArtist = r => r.artist && r.dId && !artistInfo[r.artist] && !(r.artErr > Date.now() - DAY);
+const needPrice = r => r.dId && (!r.price || Date.now() - r.price.at > PRICE_DAYS * DAY) && !(r.priceErr > Date.now() - DAY);
+function resolveArtists() { kickBg(); }
+async function kickBg() {
+  if (bgRunning || !cfg.discogs) return;
+  bgRunning = true;
   try {
-    for (const r of recs) {
-      if (artistInfo[r.artist] || !r.dId || !r.artist) continue;
-      try {
-        const j = await dg(r.dType === 'master' ? `/masters/${r.dId}` : `/releases/${r.dId}`);
-        const a = (j.artists || [])[0];
-        let person = false;
-        if (a?.id && !/^various$/i.test(a.name)) {
-          await sleep(1100);
-          const aj = await dg(`/artists/${a.id}`);
-          const words = r.artist.split(/\s+/).length;
-          person = !(aj.members && aj.members.length) && (!!aj.realname || (words >= 2 && words <= 3))
-            && !/\b(and|&|band|orchestra|orkester|trio|quartet|kvartett)\b/i.test(r.artist);
-        }
-        artistInfo[r.artist] = { person };
-        LS.set('sh.artists', artistInfo);
-        clearTimeout(rerenderT);
-        rerenderT = setTimeout(() => { if (!crate.drag && crate.target == null) render(); }, 1500);
-      } catch (e) {
-        if (/för många/.test(e.message)) await sleep(60000);
-      }
-      await sleep(1100);
+    for (;;) {
+      let r = recs.find(needArtist);
+      if (r) { await bgSafe(() => resolveArtistOne(r), r, 'artErr'); continue; }
+      r = recs.find(x => x.status === 'have' && needPrice(x)) || recs.find(needPrice);
+      if (r) { await bgSafe(() => fetchPrice(r, true), r, 'priceErr'); continue; }
+      break;
     }
-  } finally { resolving = false; }
+  } finally { bgRunning = false; scheduleRender(); }
+}
+async function bgSafe(fn, r, errKey) {
+  try { await fn(); }
+  catch (e) {
+    if (e.status === 429) await sleepMs(60000);
+    else { r[errKey] = Date.now(); LS.set('sh.recs', recs); }
+  }
+}
+async function resolveArtistOne(r) {
+  const j = await dg(r.dType === 'master' ? `/masters/${r.dId}` : `/releases/${r.dId}`, {}, { bg: true });
+  if (r.dType === 'master' && j.main_release && !r.rid) r.rid = j.main_release;
+  const a = (j.artists || [])[0];
+  let person = false;
+  if (a?.id && !/^various$/i.test(a.name)) {
+    const aj = await dg(`/artists/${a.id}`, {}, { bg: true });
+    const words = r.artist.split(/\s+/).length;
+    person = !(aj.members && aj.members.length) && (!!aj.realname || (words >= 2 && words <= 3))
+      && !/\b(and|&|band|orchestra|orkester|trio|quartet|kvartett)\b/i.test(r.artist);
+  }
+  artistInfo[r.artist] = { person };
+  LS.set('sh.artists', artistInfo);
+  scheduleRender();
+}
+
+/* ---------------- Värde: Discogs prisförslag per skick + lägsta pris just nu ---------------- */
+const CONDS = [['Mint (M)', 'Mint'], ['Near Mint (NM or M-)', 'NM'], ['Very Good Plus (VG+)', 'VG+'],
+  ['Very Good (VG)', 'VG'], ['Good Plus (G+)', 'G+'], ['Good (G)', 'G'], ['Fair (F)', 'F'], ['Poor (P)', 'P']];
+const condShort = k => (CONDS.find(c => c[0] === k) || [k, k])[1];
+const condOf = r => r.cond || cfg.cond || 'Very Good Plus (VG+)';
+const valueOf = r => r.price?.sug?.[condOf(r)] || null;
+function money(v, c) {
+  try { return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: c || 'SEK', maximumFractionDigits: 0 }).format(v); }
+  catch { return Math.round(v) + ' ' + (c || ''); }
+}
+async function releaseIdOf(r, bg) {
+  if (r.rid) return r.rid;
+  if (r.dType !== 'master') return r.dId;
+  const j = await dg(`/masters/${r.dId}`, {}, { bg });
+  r.rid = j.main_release;
+  return r.rid;
+}
+const priceInFlight = new Set();
+async function fetchPrice(r, bg) {
+  if (priceInFlight.has(r.id)) return;
+  priceInFlight.add(r.id);
+  try {
+    const rid = await releaseIdOf(r, bg);
+    let sug = null;
+    try {
+      const s = await dg(`/marketplace/price_suggestions/${rid}`, {}, { bg });
+      if (s && Object.keys(s).length) sug = Object.fromEntries(Object.entries(s).map(([k, v]) => [k, { v: v.value, c: v.currency }]));
+      if (cfg.needSeller && sug) { cfg.needSeller = false; saveCfg(); }
+    } catch (e) {
+      if (e.status === 429) throw e;
+      // Prisförslag kräver att säljarinställningarna är ifyllda på Discogs.
+      if (e.status === 403 || e.status === 401 || /seller/i.test(e.detail)) { cfg.needSeller = true; saveCfg(); }
+    }
+    const st = await dg(`/marketplace/stats/${rid}`, { curr_abbr: 'SEK' }, { bg });
+    r.price = { at: Date.now(), rid, sug,
+      low: st.lowest_price ? { v: st.lowest_price.value, c: st.lowest_price.currency } : null,
+      n: st.num_for_sale || 0 };
+    delete r.priceErr;
+    saveRecs();
+    scheduleRender();
+  } finally { priceInFlight.delete(r.id); }
+}
+function worthLine() {
+  const have = recs.filter(r => r.status === 'have');
+  if (!have.length || view.tab === 'want') return '';
+  const sums = {}; let n = 0;
+  for (const r of have) { const v = valueOf(r); if (v) { sums[v.c] = (sums[v.c] || 0) + v.v; n++; } }
+  const cond = condShort(cfg.cond || 'Very Good Plus (VG+)');
+  if (!n) {
+    if (cfg.needSeller) return 'För att se värde: fyll i <a href="https://www.discogs.com/settings/seller">säljarinställningar på Discogs</a> (välj SEK).';
+    return bgRunning ? '<span class="spin"></span>Hämtar priser från Discogs…' : '';
+  }
+  const main = Object.entries(sums).sort((a, b) => b[1] - a[1]);
+  return `Samlingens värde ca <b>${main.map(([c, v]) => money(v, c)).join(' + ')}</b> (${esc(cond)}) · ${n} av ${have.length} värderade${bgRunning ? ' · hämtar fler…' : ''}`;
+}
+function drawValue(r) {
+  const box = $('#dVal'); if (!box) return;
+  if (!r.dId) { box.innerHTML = ''; return; }
+  if (!r.price) {
+    box.innerHTML = '<div class="m"><span class="spin"></span>Hämtar pris från Discogs…</div>';
+    fetchPrice(r, false).catch(e => { if (cur === r) box.innerHTML = `<div class="m">${esc(e.message)}</div>`; });
+    return;
+  }
+  const v = valueOf(r), p = r.price;
+  const masterId = r.masterId || (r.dType === 'master' ? r.dId : null);
+  box.innerHTML = `
+    <div class="m">Värde enligt Discogs prisförslag</div>
+    <div class="row" style="justify-content:space-between;margin-top:2px">
+      <div class="valbig">${v ? 'ca ' + money(v.v, v.c) : '–'}</div>
+      <select id="dCond" style="width:auto;padding:6px 8px">${CONDS.map(([k, s]) => `<option value="${esc(k)}" ${k === condOf(r) ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+    </div>
+    ${!p.sug ? `<p class="note">Inget prisförslag. ${cfg.needSeller ? 'Fyll i <a href="https://www.discogs.com/settings/seller">säljarinställningar på Discogs</a> (välj SEK) så visas det.' : 'Discogs har för lite försäljningar av den här utgåvan.'}</p>` : ''}
+    <div class="m" style="margin-top:6px">${p.low ? `Lägst just nu ${money(p.low.v, p.low.c)} · ${p.n} till salu` : 'Ingen till salu just nu'}</div>
+    <div class="m">Utgåva: ${esc(r.relLabel || (r.rid && r.dType === 'master' ? 'huvudutgåvan' : 'den du valde'))} · uppdaterat ${esc(new Date(p.at).toLocaleDateString('sv-SE'))}</div>
+    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+      ${masterId ? '<button id="dVers">Välj exakt utgåva</button>' : ''}
+      <button id="dRefresh">Uppdatera pris</button>
+    </div>
+    <div id="dVersList"></div>`;
+  $('#dCond').onchange = e => { r.cond = e.target.value; saveRecs(); drawValue(r); render(); };
+  $('#dRefresh').onclick = () => { r.price = null; drawValue(r); };
+  if ($('#dVers')) $('#dVers').onclick = () => showVersions(r, masterId);
+}
+async function showVersions(r, masterId) {
+  const box = $('#dVersList');
+  box.innerHTML = '<div class="m" style="margin-top:8px"><span class="spin"></span>Hämtar utgåvor…</div>';
+  try {
+    const j = await dg(`/masters/${masterId}/versions`, { per_page: 100, sort: 'released', sort_order: 'asc' });
+    const vs = (j.versions || []);
+    box.innerHTML = `<p class="note">Välj den pressning du har (${vs.length} st):</p>` + vs.map((x, i) => `
+      <div class="cand" data-i="${i}" style="cursor:pointer">
+        ${x.thumb ? `<img src="${esc(x.thumb)}" alt="">` : '<div class="ph">♪</div>'}
+        <div><div class="t">${esc([x.format, x.country, x.released].filter(Boolean).join(' · '))}</div>
+          <div class="m">${esc([x.label, x.catno].filter(Boolean).join(' · '))}</div>
+          ${x.id === r.rid ? '<div class="m" style="color:var(--acc)">Vald nu</div>' : ''}</div></div>`).join('');
+    box.onclick = e => {
+      const el = e.target.closest('.cand'); if (!el) return;
+      const x = vs[+el.dataset.i];
+      r.rid = x.id;
+      r.relLabel = [x.format, x.country, x.released, x.catno].filter(Boolean).join(' · ');
+      r.price = null; saveRecs(); drawValue(r);
+    };
+  } catch (e) { box.innerHTML = `<div class="m">${esc(e.message)}</div>`; }
 }
 view.mode = LS.get('sh.mode', 'crate');
 
@@ -319,6 +452,7 @@ function render() {
   document.querySelector('[data-tab=all]').textContent = `Alla (${recs.length})`;
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === view.tab));
   $('#btnView').textContent = view.mode === 'crate' ? '▦' : '▤';
+  const w = worthLine(); $('#worth').innerHTML = w; $('#worth').hidden = !w;
   $('#crateView').hidden = view.mode !== 'crate';
   $('#gridView').hidden = view.mode === 'crate';
 
@@ -535,15 +669,32 @@ $('#nPlay').onclick = () => { const r = crate.list[Math.round(crate.pos)]; if (r
 addEventListener('resize', () => crateLayout());
 
 /* ---------------- Discogs ---------------- */
-async function dg(path, params = {}) {
+// Gemensam takt för alla Discogs-anrop (gränsen är 60/min). Bakgrundsjobb får högst 40/min så att sökningar går fort.
+const dgLog = [];
+async function dgSlot(bg) {
+  for (;;) {
+    const now = Date.now();
+    while (dgLog.length && now - dgLog[0] > 60000) dgLog.shift();
+    const gap = now - (dgLog[dgLog.length - 1] || 0);
+    if (dgLog.length < (bg ? 40 : 56) && gap >= (bg ? 1200 : 200)) { dgLog.push(now); return; }
+    await new Promise(r => setTimeout(r, bg ? 1200 : 250));
+  }
+}
+async function dg(path, params = {}, opt = {}) {
   if (!cfg.discogs) throw new Error('Lägg in din Discogs-token under ⚙︎ först.');
   const u = new URL('https://api.discogs.com' + path);
   for (const [k, v] of Object.entries(params)) if (v) u.searchParams.set(k, v);
   u.searchParams.set('token', cfg.discogs);
+  await dgSlot(opt.bg);
   const r = await fetch(u);
-  if (r.status === 401) throw new Error('Discogs godkände inte token. Kolla den under ⚙︎.');
-  if (r.status === 429) throw new Error('Discogs: för många sökningar just nu, vänta en minut.');
-  if (!r.ok) throw new Error('Discogs svarade ' + r.status);
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const e = new Error(r.status === 401 ? 'Discogs godkände inte token. Kolla den under ⚙︎.'
+      : r.status === 429 ? 'Discogs: för många sökningar just nu, vänta en minut.'
+      : 'Discogs svarade ' + r.status + (body.message ? ': ' + body.message : ''));
+    e.status = r.status; e.detail = body.message || '';
+    throw e;
+  }
   return r.json();
 }
 const dgSearch = p => dg('/database/search', { per_page: 10, ...p }).then(j => j.results || []);
@@ -809,6 +960,7 @@ function drawDetail() {
         </div>
       </div>
       <p class="note">Sorteras under <b id="dSort"></b>${/^(the|a)\s/i.test(r.artist) || r.artist.trim().split(/\s+/).length < 2 ? '' : ' · <a href="#" id="dSortBtn">ändra</a>'}</p>
+      <div class="valbox" id="dVal"></div>
       <p class="note" id="dSp">${r.spotifyName ? 'Spotify: ' + esc(r.spotifyName) : sp ? '' : 'Spela öppnar en sökning i Spotify. Logga in på Spotify under ⚙︎ för att hamna direkt på albumet.'}</p>
       <div class="tracks" id="dTracks"><div class="msg"><span class="spin"></span>Hämtar låtlistan…</div></div>
       <div class="actions">
@@ -836,6 +988,7 @@ function drawDetail() {
     recs = recs.filter(x => x !== r); saveRecs(); closeDetail(); render(); toast('Borttagen');
   };
   if (r.tracks) drawTracks();
+  drawValue(r);
 }
 function setStatus(s) {
   cur.status = s; saveRecs(); render();
@@ -970,6 +1123,7 @@ function drawSpBox() {
 }
 function openSettings() {
   $('#discogsToken').value = cfg.discogs || '';
+  $('#defCond').innerHTML = CONDS.map(([k, s]) => `<option value="${esc(k)}" ${k === (cfg.cond || 'Very Good Plus (VG+)') ? 'selected' : ''}>${esc(s)} – ${esc(k)}</option>`).join('');
   $('#geminiKey').value = cfg.gemini || '';
   $('#gemToday').textContent = `Gemini-anrop idag: ${gemCount()}.`;
   $('#spClient').value = cfg.spClient || '';
@@ -982,6 +1136,7 @@ function openSettings() {
 }
 function closeSettings() {
   cfg.discogs = $('#discogsToken').value.trim();
+  cfg.cond = $('#defCond').value;
   cfg.gemini = $('#geminiKey').value.trim();
   cfg.spClient = $('#spClient').value.trim();
   saveCfg(); render();
@@ -1002,6 +1157,12 @@ $('#btnImport').onclick = () => {
 /* ---------------- Ändringslogg (nyast överst) ---------------- */
 const WEB_VERSION = '2026-11-14';
 const CHANGELOG = [
+  { d: '2026-11-14', t: 'Skivornas värde', i: [
+    'Värde per skiva enligt Discogs prisförslag, för det skick du väljer (standard VG+).',
+    'Lägsta pris just nu och hur många som är till salu.',
+    'Välj exakt utgåva (pressning) för ett säkrare värde.',
+    'Samlingens totala värde visas under flikarna.',
+    'Priserna hämtas i bakgrunden och uppdateras varje vecka.' ] },
   { d: '2026-11-14', t: 'Backup, snabbskanning och mjukare bläddring', i: [
     'Backup till Google Drive: spara skivor och inställningar som en fil, och hämta den på en ny telefon.',
     'Automatisk backup när samlingen ändras (valfritt).',

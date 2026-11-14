@@ -9,6 +9,8 @@ Din skivsamling i telefonen. Fota en skiva så letar appen upp vilken det är, e
 
 Samlingen sparas på telefonen. Under ⚙︎ → Backup till Google Drive sparar du skivor och inställningar som en fil i Drive, och hämtar den igen på en ny telefon. Det går också att slå på automatisk backup.
 
+**Värde:** varje skiva visar Discogs prisförslag för valt skick (standard VG+) och lägsta pris just nu, och samlingens totala värde visas under flikarna. Prisförslagen kräver att säljarinställningarna är ifyllda på Discogs (välj SEK). Du kan välja exakt utgåva per skiva.
+
 **Många skivor:** tryck på + och välj "Snabbskanna många skivor". Skanna streckkod efter streckkod. Säkra träffar läggs in direkt, och osäkra hamnar i "Att granska".
 
 ## Kom igång
